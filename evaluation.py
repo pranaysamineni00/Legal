@@ -81,6 +81,56 @@ def tune_per_clause_thresholds(
     return best
 
 
+def bootstrap_macro_f1_ci(
+    logits: np.ndarray,
+    labels: np.ndarray,
+    thresholds: dict[int | str, float],
+    id_to_clause: dict[int, str] | None = None,
+    n_resamples: int = 1000,
+    confidence: float = 0.95,
+    seed: int = 42,
+) -> dict[str, float]:
+    """Bootstrap a confidence interval for macro-F1 by resampling rows (contracts) with replacement.
+
+    The CUAD test set is small (~50 contracts after the 80/10/10 split), so a
+    single point estimate of macro-F1 is noisy. This function reports a 95%
+    bootstrap percentile interval to convey that uncertainty alongside the
+    headline number — relevant when comparing the result against the 0.70
+    business threshold defined in Section 3.
+
+    Returns dict with keys: macro_f1, ci_low, ci_high, n_resamples, confidence.
+    """
+    probs = _sigmoid(logits)
+    n_rows, n_labels = probs.shape
+    int_labels = labels.astype(int)
+    preds = np.zeros_like(probs, dtype=int)
+    for i in range(n_labels):
+        key = id_to_clause[i] if (id_to_clause and i in id_to_clause) else i
+        t = thresholds.get(key, 0.5)
+        preds[:, i] = (probs[:, i] >= t).astype(int)
+
+    point_estimate = float(f1_score(int_labels, preds, average="macro", zero_division=0))
+
+    rng = np.random.default_rng(seed)
+    sampled = np.empty(n_resamples, dtype=np.float64)
+    for b in range(n_resamples):
+        idx = rng.integers(0, n_rows, size=n_rows)
+        sampled[b] = float(
+            f1_score(int_labels[idx], preds[idx], average="macro", zero_division=0)
+        )
+
+    alpha = 1.0 - confidence
+    ci_low  = float(np.quantile(sampled, alpha / 2))
+    ci_high = float(np.quantile(sampled, 1 - alpha / 2))
+    return {
+        "macro_f1":    point_estimate,
+        "ci_low":      ci_low,
+        "ci_high":     ci_high,
+        "n_resamples": int(n_resamples),
+        "confidence":  float(confidence),
+    }
+
+
 def compute_aggregate_metrics(
     logits: np.ndarray,
     labels: np.ndarray,

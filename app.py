@@ -71,7 +71,7 @@ def extract_text(file_path: str, filename: str) -> str:
         pages = [page.extract_text() or "" for page in reader.pages]
         return "\n".join(pages)
 
-    if ext in (".docx", ".doc"):
+    if ext == ".docx":
         try:
             import docx
         except ImportError:
@@ -115,7 +115,7 @@ def classify():
         return jsonify({"error": "Empty filename."}), 400
 
     ext = Path(file.filename).suffix.lower()
-    if ext not in (".pdf", ".docx", ".doc", ".txt"):
+    if ext not in (".pdf", ".docx", ".txt"):
         return jsonify({"error": f"Unsupported format '{ext}'. Upload PDF, DOCX, or TXT."}), 400
 
     tmp_path = None

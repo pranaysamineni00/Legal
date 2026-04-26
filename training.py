@@ -66,6 +66,25 @@ def _sigmoid(logits: np.ndarray) -> np.ndarray:
     return 1.0 / (1.0 + np.exp(-np.clip(logits, -500, 500)))
 
 
+def _is_longformer_model(model: Any) -> bool:
+    """True when the underlying HuggingFace class is a Longformer variant."""
+    return type(model).__name__.startswith("Longformer")
+
+
+def _add_global_attention_if_needed(inputs: dict, model: Any) -> dict:
+    """For Longformer models, ensure a global_attention_mask is set with global
+    attention on the [CLS] token (position 0). Without this, LongformerForSequenceClassification
+    runs with local-only attention and the [CLS] representation cannot attend across
+    the full window, defeating the architectural purpose of using Longformer for
+    document classification. No-op for non-Longformer models or if the caller has
+    already set the mask."""
+    if _is_longformer_model(model) and "global_attention_mask" not in inputs:
+        gam = torch.zeros_like(inputs["input_ids"])
+        gam[:, 0] = 1
+        inputs["global_attention_mask"] = gam
+    return inputs
+
+
 def _aggregate_to_contract_level(
     chunk_logits: np.ndarray,
     chunk_labels: np.ndarray,
@@ -106,23 +125,32 @@ def _tune_global_threshold(
     labels: np.ndarray,
     thresholds: np.ndarray | None = None,
 ) -> tuple[float, dict[str, float]]:
-    """Find the global threshold maximising micro-F1; return (threshold, metrics_dict)."""
+    """Find the global threshold maximising macro-F1; return (threshold, metrics_dict).
+
+    Macro-F1 is the primary reported metric (averages per-clause F1 with equal
+    weight across all retained clause types), so threshold tuning targets it
+    directly. This keeps tuning and checkpoint selection on the same objective —
+    the saved epoch is the one whose best-macro-F1 threshold yields the highest
+    macro-F1 on val. Micro stats are still returned for visibility.
+    """
     from sklearn.metrics import f1_score, precision_score, recall_score
     if thresholds is None:
         thresholds = np.arange(0.1, 0.91, 0.05)
+    int_labels = labels.astype(int)
     best_t = 0.5
     best_f1 = -1.0
     for t in thresholds:
         preds = (_sigmoid(logits) >= t).astype(int)
-        f1 = float(f1_score(labels.astype(int), preds, average="micro", zero_division=0))
+        f1 = float(f1_score(int_labels, preds, average="macro", zero_division=0))
         if f1 > best_f1:
             best_f1 = f1
             best_t = float(t)
     preds = (_sigmoid(logits) >= best_t).astype(int)
     return best_t, {
-        "micro_f1":        best_f1,
-        "micro_precision": float(precision_score(labels.astype(int), preds, average="micro", zero_division=0)),
-        "micro_recall":    float(recall_score(labels.astype(int), preds, average="micro",    zero_division=0)),
+        "macro_f1":        best_f1,
+        "micro_f1":        float(f1_score(int_labels, preds, average="micro",  zero_division=0)),
+        "micro_precision": float(precision_score(int_labels, preds, average="micro", zero_division=0)),
+        "micro_recall":    float(recall_score(int_labels, preds, average="micro",    zero_division=0)),
     }
 
 
@@ -132,7 +160,10 @@ def collect_logits_and_labels(
     device: torch.device,
     max_batches: int | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Run inference on a DataLoader and return (logits, labels) as numpy arrays."""
+    """Run inference on a DataLoader and return (logits, labels) as numpy arrays.
+
+    For Longformer models, automatically sets global_attention_mask on the [CLS]
+    token so inference matches the training configuration."""
     model.eval()
     all_logits, all_labels = [], []
     with torch.no_grad():
@@ -141,6 +172,7 @@ def collect_logits_and_labels(
                 break
             labels = batch["labels"].cpu().numpy()
             inputs = {k: v.to(device) for k, v in batch.items() if k != "labels"}
+            inputs = _add_global_attention_if_needed(inputs, model)
             logits = model(**inputs).logits.cpu().numpy()
             all_logits.append(logits)
             all_labels.append(labels)
@@ -160,6 +192,7 @@ def _run_training_loop(
     warmup_ratio: float = 0.1,
     max_train_batches: int | None = None,
     max_val_batches: int | None = None,
+    grad_accum_steps: int = 1,
 ) -> tuple[Any, pd.DataFrame, float, dict, np.ndarray, np.ndarray]:
     """Shared training loop for all transformer models.
 
@@ -167,18 +200,31 @@ def _run_training_loop(
     val_logits and val_labels in the return value are contract-level (max-probability rollup),
     matching the granularity used in Section 4 test evaluation.
     Applies pos_weight (BCEWithLogitsLoss) and per-sample downweighting for all-negative chunks.
+
+    grad_accum_steps: accumulate gradients across this many micro-batches before each
+    optimizer step. Effective batch size = train_loader.batch_size * grad_accum_steps.
+    Used to equalise effective batch size between BERT-family (batch_size=16) and
+    Longformer (batch_size=4, grad_accum_steps=4 → effective 16) so the model
+    comparison is not confounded by different gradient noise / step counts.
+
+    For Longformer models, global attention is automatically set on the [CLS] token
+    so the classification head can attend across the full window.
     """
+    if epochs < 1:
+        raise ValueError(f"epochs must be >= 1, got {epochs}")
+    if grad_accum_steps < 1:
+        raise ValueError(f"grad_accum_steps must be >= 1, got {grad_accum_steps}")
+
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
     effective = len(train_loader) if max_train_batches is None else min(len(train_loader), max_train_batches)
-    total_steps = max(1, epochs * max(1, effective))
+    # One optimizer step per grad_accum_steps micro-batches (ceiling division for the tail).
+    steps_per_epoch = max(1, (effective + grad_accum_steps - 1) // grad_accum_steps)
+    total_steps = max(1, epochs * steps_per_epoch)
     scheduler = get_linear_schedule_with_warmup(optimizer, int(total_steps * warmup_ratio), total_steps)
 
     pos_weight = compute_pos_weight(train_examples).to(device)
     # reduction="none" so we can apply per-sample weights manually
     loss_fn = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight, reduction="none")
-
-    if epochs < 1:
-        raise ValueError(f"epochs must be >= 1, got {epochs}")
 
     # Mixed precision: ~1.5-2x speedup on CUDA (T4/V100/A100). No-op on CPU/MPS.
     use_amp = device.type == "cuda"
@@ -194,13 +240,14 @@ def _run_training_loop(
     for epoch in range(1, epochs + 1):
         model.train()
         total_loss, seen = 0.0, 0
+        optimizer.zero_grad(set_to_none=True)
 
         for bi, batch in enumerate(train_loader):
             if max_train_batches is not None and bi >= max_train_batches:
                 break
             labels = batch["labels"].to(device)
             inputs = {k: v.to(device) for k, v in batch.items() if k != "labels"}
-            optimizer.zero_grad(set_to_none=True)
+            inputs = _add_global_attention_if_needed(inputs, model)
 
             with torch.amp.autocast('cuda', enabled=use_amp):
                 logits = model(**inputs).logits
@@ -210,13 +257,21 @@ def _run_training_loop(
                 batch_sw = torch.where(is_all_negative,
                                        torch.full((labels.shape[0],), 0.1, device=device),
                                        torch.ones(labels.shape[0], device=device))
-                loss = (loss_fn(logits, labels).mean(dim=1) * batch_sw).mean()
+                # Scale loss by 1/grad_accum_steps so summed gradients across the
+                # accumulation window match the gradient of one full effective batch.
+                loss = (loss_fn(logits, labels).mean(dim=1) * batch_sw).mean() / grad_accum_steps
 
             scaler.scale(loss).backward()
-            scaler.step(optimizer)
-            scaler.update()
-            scheduler.step()
-            total_loss += float(loss.item())
+
+            # Step every grad_accum_steps micro-batches, or at the end of the epoch's effective range.
+            is_step_boundary = ((bi + 1) % grad_accum_steps == 0) or ((bi + 1) == effective)
+            if is_step_boundary:
+                scaler.step(optimizer)
+                scaler.update()
+                scheduler.step()
+                optimizer.zero_grad(set_to_none=True)
+            # Multiply back by grad_accum_steps so total_loss reflects the un-scaled per-micro-batch loss.
+            total_loss += float(loss.item()) * grad_accum_steps
             seen += 1
 
         val_chunk_logits, val_chunk_labels = collect_logits_and_labels(model, val_loader, device, max_val_batches)
@@ -225,13 +280,10 @@ def _run_training_loop(
         # Slice val_examples to match the collected rows when max_val_batches truncates.
         val_ex_subset = val_examples[:len(val_chunk_logits)]
         val_logits, val_labels = _aggregate_to_contract_level(val_chunk_logits, val_chunk_labels, val_ex_subset)
+        # Threshold tuned by macro-F1 (primary reported metric); best epoch
+        # selected on the same objective so tuning and checkpoint selection
+        # are aligned (see _tune_global_threshold docstring).
         t, metrics = _tune_global_threshold(val_logits, val_labels)
-        # Threshold is tuned by micro-F1 (more stable signal), but the best epoch
-        # checkpoint is selected by macro-F1 — the primary reported metric — so
-        # that the saved model is optimal for equal per-clause evaluation.
-        from sklearn.metrics import f1_score as _f1
-        _preds = (_sigmoid(val_logits) >= t).astype(int)
-        metrics["macro_f1"] = float(_f1(val_labels.astype(int), _preds, average="macro", zero_division=0))
         history_rows.append({"epoch": epoch, "train_loss": total_loss / max(1, seen),
                               "val_threshold": t, **metrics})
         print(f"  Epoch {epoch}/{epochs}: loss={total_loss / max(1, seen):.4f}  "
@@ -309,7 +361,7 @@ def train_tfidf_lr(
 
     pipeline = _TfIdfPipeline(vectorizer, estimators)
 
-    print(f"TF-IDF + LR → val micro_F1={val_metrics['micro_f1']:.4f}, threshold={best_t:.2f}")
+    print(f"TF-IDF + LR → val macro_F1={val_metrics['macro_f1']:.4f}  micro_F1={val_metrics['micro_f1']:.4f}, threshold={best_t:.2f}")
     return ModelArtifacts(
         model_name="TF-IDF + LR",
         model=pipeline,
@@ -370,7 +422,7 @@ def train_bert_cuad(
         max_train_batches, max_val_batches,
     )
 
-    print(f"{artifact_name} → val micro_F1={metrics['micro_f1']:.4f}, threshold={best_t:.2f}")
+    print(f"{artifact_name} → val macro_F1={metrics['macro_f1']:.4f}  micro_F1={metrics['micro_f1']:.4f}, threshold={best_t:.2f}")
     return ModelArtifacts(
         model_name=artifact_name,
         model=model,
@@ -395,6 +447,7 @@ def train_bert_ledgar_cuad(
     val_examples: list[dict] | None = None,
     ledgar_epochs: int = 3,
     ledgar_max_batches: int | None = None,
+    ledgar_batch_size: int = 32,
     cuad_epochs: int = 3,
     cuad_max_train_batches: int | None = None,
     cuad_max_val_batches: int | None = None,
@@ -407,6 +460,11 @@ def train_bert_ledgar_cuad(
     Phase 1 uses LEDGAR labels to warm the model on legal language.
     Phase 2 strips the LEDGAR classification head, attaches a new multi-label head,
     and fine-tunes on CUAD using the shared _run_training_loop.
+
+    ledgar_batch_size decouples Phase 1 from Phase 2: LEDGAR sequences are 512 tokens
+    so a larger batch is safe even when CUAD batch_size is small for memory reasons.
+    Matches train_longformer_ledgar_cuad so both LEDGAR-warmstarted variants see the
+    same effective gradient steps per epoch on the warm-up corpus.
     """
     from torch.utils.data import Dataset as TorchDataset, DataLoader as TorchDataLoader
 
@@ -436,15 +494,18 @@ def train_bert_ledgar_cuad(
             return len(self.ds)
         def __getitem__(self, i):
             item = self.ds[i]
+            # torch.as_tensor is a no-op when item[k] is already a tensor (the
+            # set_format("torch", ...) call above ensures it is) but tolerates
+            # plain python lists if that call is ever moved or removed.
             return {
-                "input_ids":      item["input_ids"],
-                "attention_mask": item["attention_mask"],
-                "labels":         item["label"],
+                "input_ids":      torch.as_tensor(item["input_ids"], dtype=torch.long),
+                "attention_mask": torch.as_tensor(item["attention_mask"], dtype=torch.long),
+                "labels":         torch.as_tensor(item["label"], dtype=torch.long),
             }
 
     _pin = device.type == "cuda"
     ledgar_loader = TorchDataLoader(
-        _LedgarDataset(ledgar_tok), batch_size=batch_size, shuffle=True,
+        _LedgarDataset(ledgar_tok), batch_size=ledgar_batch_size, shuffle=True,
         num_workers=2, pin_memory=_pin, persistent_workers=True,
     )
     optimizer_p1 = torch.optim.AdamW(ledgar_model.parameters(), lr=learning_rate, weight_decay=0.01)
@@ -460,6 +521,7 @@ def train_bert_ledgar_cuad(
                 break
             labels = batch["labels"].to(device)
             inputs = {k: v.to(device) for k, v in batch.items() if k != "labels"}
+            inputs = _add_global_attention_if_needed(inputs, ledgar_model)
             optimizer_p1.zero_grad(set_to_none=True)
             with torch.amp.autocast('cuda', enabled=use_amp):
                 logits = ledgar_model(**inputs).logits
@@ -512,7 +574,7 @@ def train_bert_ledgar_cuad(
         max_val_batches=cuad_max_val_batches,
     )
 
-    print(f"BERT (LEDGAR→CUAD) → val micro_F1={metrics['micro_f1']:.4f}, threshold={best_t:.2f}")
+    print(f"BERT (LEDGAR→CUAD) → val macro_F1={metrics['macro_f1']:.4f}  micro_F1={metrics['micro_f1']:.4f}, threshold={best_t:.2f}")
     return ModelArtifacts(
         model_name="BERT (LEDGAR→CUAD)",
         model=model,
@@ -552,73 +614,6 @@ def train_legal_bert_cuad(
     )
 
 
-def init_longformer_from_legal_bert(
-    num_labels: int,
-    legal_bert_name: str = "nlpaueb/legal-bert-base-uncased",
-    longformer_name: str = "allenai/longformer-base-4096",
-) -> Any:
-    """Initialise a LongformerForSequenceClassification with Legal-BERT backbone weights.
-
-    Follows Mamakas et al. 2022:
-    - Shared encoder layer weights copied by name
-    - Position embeddings tiled from 512 → 4096
-    - Global attention projections initialised from BERT attention weights
-    """
-    from transformers import AutoModel, LongformerForSequenceClassification, LongformerConfig
-
-    print(f"Loading Legal-BERT backbone from {legal_bert_name}...")
-    bert_model = AutoModel.from_pretrained(legal_bert_name)
-    bert_state = bert_model.state_dict()
-
-    print(f"Loading Longformer config from {longformer_name}...")
-    lf_config = LongformerConfig.from_pretrained(longformer_name)
-    lf_config.num_labels = num_labels
-    lf_config.problem_type = "multi_label_classification"
-
-    print("Initialising Longformer with Longformer-base-4096 weights...")
-    lf_model = LongformerForSequenceClassification.from_pretrained(
-        longformer_name, config=lf_config, ignore_mismatched_sizes=True
-    )
-    lf_state = lf_model.state_dict()
-    new_state: dict[str, torch.Tensor] = {}
-
-    for lf_key in lf_state:
-        # Map longformer key → bert key (strip "longformer." prefix → "")
-        bert_key = lf_key.replace("longformer.", "")
-
-        if "position_embeddings" in lf_key:
-            # Extend 512 positions → 4096 by tiling
-            bert_pos_key = "embeddings.position_embeddings.weight"
-            if bert_pos_key in bert_state:
-                bert_pos = bert_state[bert_pos_key]           # [512, 768]
-                target_size = lf_state[lf_key].shape[0]       # typically 4098
-                repeats = (target_size // bert_pos.shape[0]) + 1
-                extended = bert_pos.repeat(repeats, 1)[:target_size]
-                new_state[lf_key] = extended
-                continue
-            new_state[lf_key] = lf_state[lf_key]
-
-        elif "query_global" in lf_key or "key_global" in lf_key or "value_global" in lf_key:
-            # Global attention projections: initialise from BERT's attention weights
-            base = lf_key.replace("query_global", "query").replace("key_global", "key").replace("value_global", "value")
-            bert_equiv = base.replace("longformer.", "")
-            if bert_equiv in bert_state and bert_state[bert_equiv].shape == lf_state[lf_key].shape:
-                new_state[lf_key] = bert_state[bert_equiv].clone()
-            else:
-                new_state[lf_key] = lf_state[lf_key]
-
-        elif bert_key in bert_state and bert_state[bert_key].shape == lf_state[lf_key].shape:
-            new_state[lf_key] = bert_state[bert_key]
-
-        else:
-            new_state[lf_key] = lf_state[lf_key]
-
-    lf_model.load_state_dict(new_state)
-    transferred = sum(1 for k in lf_state if new_state[k] is not lf_state[k])
-    print(f"Transferred {transferred}/{len(lf_state)} weight tensors from Legal-BERT to Longformer.")
-    return lf_model
-
-
 def train_longformer_cuad(
     train_dataset: MultiLabelChunkDataset,
     val_dataset: MultiLabelChunkDataset,
@@ -629,12 +624,19 @@ def train_longformer_cuad(
     model_name: str = "allenai/longformer-base-4096",
     epochs: int = 3,
     batch_size: int = 4,
+    grad_accum_steps: int = 4,
     learning_rate: float = 2e-5,
     max_train_batches: int | None = None,
     max_val_batches: int | None = None,
     device: torch.device | None = None,
 ) -> ModelArtifacts:
-    """Fine-tune Longformer-base-4096 on CUAD multi-label chunks."""
+    """Fine-tune Longformer-base-4096 on CUAD multi-label chunks.
+
+    Default batch_size=4 × grad_accum_steps=4 → effective batch size 16, matching
+    BERT-family models so the macro-F1 comparison is not confounded by gradient
+    noise / step-count differences. Global attention on [CLS] is set automatically
+    by _add_global_attention_if_needed inside the training loop and inference path.
+    """
     device = device or choose_device()
     label2id = {v: k for k, v in id_to_clause.items()}
     model = AutoModelForSequenceClassification.from_pretrained(
@@ -650,7 +652,7 @@ def train_longformer_cuad(
     # of storing them, trading ~15% extra compute for ~4x less activation memory.
     # Critical for Longformer at 4096 tokens — without this the T4/A100 runs OOM.
     model.config.use_cache = False
-    model.gradient_checkpointing_enable()
+    model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": True})
 
     _pin = device.type == "cuda"
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True,
@@ -666,63 +668,11 @@ def train_longformer_cuad(
         warmup_ratio=0.1,
         max_train_batches=max_train_batches,
         max_val_batches=max_val_batches,
+        grad_accum_steps=grad_accum_steps,
     )
-    print(f"Longformer (CUAD) → val micro_F1={metrics['micro_f1']:.4f}, threshold={best_t:.2f}")
+    print(f"Longformer (CUAD) → val macro_F1={metrics['macro_f1']:.4f}  micro_F1={metrics['micro_f1']:.4f}, threshold={best_t:.2f}")
     return ModelArtifacts(
         model_name="Longformer (CUAD)",
-        model=model, tokenizer=tokenizer,
-        best_threshold=best_t, val_metrics=metrics, history=history,
-        id_to_clause=id_to_clause, val_logits=val_logits, val_labels=val_labels,
-    )
-
-
-def train_legalbert_longformer_cuad(
-    train_dataset: MultiLabelChunkDataset,
-    val_dataset: MultiLabelChunkDataset,
-    train_examples: list[dict],
-    tokenizer: Any,
-    id_to_clause: dict[int, str],
-    val_examples: list[dict] | None = None,
-    legal_bert_name: str = "nlpaueb/legal-bert-base-uncased",
-    longformer_name: str = "allenai/longformer-base-4096",
-    epochs: int = 3,
-    batch_size: int = 4,
-    learning_rate: float = 2e-5,
-    max_train_batches: int | None = None,
-    max_val_batches: int | None = None,
-    device: torch.device | None = None,
-) -> ModelArtifacts:
-    """Legal-BERT warm-started Longformer fine-tuned on CUAD (Mamakas et al. 2022)."""
-    device = device or choose_device()
-    model = init_longformer_from_legal_bert(
-        num_labels=len(id_to_clause),
-        legal_bert_name=legal_bert_name,
-        longformer_name=longformer_name,
-    ).to(device)
-
-    # Gradient checkpointing: same rationale as train_longformer_cuad — prevents
-    # OOM on 4096-token sequences without changing the training methodology.
-    model.config.use_cache = False
-    model.gradient_checkpointing_enable()
-
-    _pin = device.type == "cuda"
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True,
-                              num_workers=2, pin_memory=_pin, persistent_workers=True)
-    val_loader   = DataLoader(val_dataset,   batch_size=batch_size, shuffle=False,
-                              num_workers=2, pin_memory=_pin, persistent_workers=True)
-
-    model, history, best_t, metrics, val_logits, val_labels = _run_training_loop(
-        model, train_loader, val_loader, train_examples, val_examples or [], device,
-        epochs=epochs,
-        learning_rate=learning_rate,
-        weight_decay=0.01,
-        warmup_ratio=0.1,
-        max_train_batches=max_train_batches,
-        max_val_batches=max_val_batches,
-    )
-    print(f"Legal-BERT→Longformer → val micro_F1={metrics['micro_f1']:.4f}, threshold={best_t:.2f}")
-    return ModelArtifacts(
-        model_name="Legal-BERT→Longformer (CUAD)",
         model=model, tokenizer=tokenizer,
         best_threshold=best_t, val_metrics=metrics, history=history,
         id_to_clause=id_to_clause, val_logits=val_logits, val_labels=val_labels,
@@ -745,6 +695,7 @@ def train_longformer_ledgar_cuad(
     cuad_max_train_batches: int | None = None,
     cuad_max_val_batches: int | None = None,
     batch_size: int = 4,
+    grad_accum_steps: int = 4,
     learning_rate: float = 2e-5,
     device: torch.device | None = None,
 ) -> ModelArtifacts:
@@ -769,8 +720,9 @@ def train_longformer_ledgar_cuad(
     ledgar_model = AutoModelForSequenceClassification.from_pretrained(
         longformer_name, num_labels=n_ledgar_labels,
     ).to(device)
+    # Phase 1 uses 512-token sequences with a large batch — activation memory fits
+    # comfortably without gradient checkpointing. Re-enabled in Phase 2 (4096 tokens).
     ledgar_model.config.use_cache = False
-    ledgar_model.gradient_checkpointing_enable()
 
     def _tokenize_ledgar(batch: dict) -> dict:
         return tokenizer(
@@ -789,10 +741,13 @@ def train_longformer_ledgar_cuad(
             return len(self.ds)
         def __getitem__(self, i):
             item = self.ds[i]
+            # torch.as_tensor is a no-op when item[k] is already a tensor (the
+            # set_format("torch", ...) call above ensures it is) but tolerates
+            # plain python lists if that call is ever moved or removed.
             return {
-                "input_ids":      item["input_ids"],
-                "attention_mask": item["attention_mask"],
-                "labels":         item["label"],
+                "input_ids":      torch.as_tensor(item["input_ids"], dtype=torch.long),
+                "attention_mask": torch.as_tensor(item["attention_mask"], dtype=torch.long),
+                "labels":         torch.as_tensor(item["label"], dtype=torch.long),
             }
 
     # ledgar_batch_size decouples Phase 1 batch size from Phase 2:
@@ -814,6 +769,7 @@ def train_longformer_ledgar_cuad(
                 break
             labels = batch["labels"].to(device)
             inputs = {k: v.to(device) for k, v in batch.items() if k != "labels"}
+            inputs = _add_global_attention_if_needed(inputs, ledgar_model)
             optimizer_p1.zero_grad(set_to_none=True)
             with torch.amp.autocast('cuda', enabled=use_amp):
                 logits = ledgar_model(**inputs).logits
@@ -849,7 +805,7 @@ def train_longformer_ledgar_cuad(
           f"missing={len(missing)}, unexpected={len(unexpected)}")
     cuad_model = cuad_model.to(device)
     cuad_model.config.use_cache = False
-    cuad_model.gradient_checkpointing_enable()
+    cuad_model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": True})
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True,
                               num_workers=2, pin_memory=_pin, persistent_workers=True)
@@ -864,8 +820,9 @@ def train_longformer_ledgar_cuad(
         warmup_ratio=0.1,
         max_train_batches=cuad_max_train_batches,
         max_val_batches=cuad_max_val_batches,
+        grad_accum_steps=grad_accum_steps,
     )
-    print(f"Longformer (LEDGAR→CUAD) → val micro_F1={metrics['micro_f1']:.4f}, threshold={best_t:.2f}")
+    print(f"Longformer (LEDGAR→CUAD) → val macro_F1={metrics['macro_f1']:.4f}  micro_F1={metrics['micro_f1']:.4f}, threshold={best_t:.2f}")
     return ModelArtifacts(
         model_name="Longformer (LEDGAR→CUAD)",
         model=model, tokenizer=tokenizer,

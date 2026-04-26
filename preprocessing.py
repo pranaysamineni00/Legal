@@ -301,7 +301,11 @@ def compute_pos_weight(
     label_matrix = np.asarray([ex["labels"] for ex in chunk_examples], dtype=np.float32)
     positive_counts = label_matrix.sum(axis=0)
     negative_counts = len(label_matrix) - positive_counts
-    weights = np.where(positive_counts > 0, negative_counts / np.maximum(positive_counts, 1.0), 1.0)
+    # Labels with zero positives in train get max_weight so the loss treats them as
+    # the rarest possible class (rather than the arbitrary 1.0 default that fell out
+    # of the np.where else branch). MIN_POSITIVES filtering should prevent this at
+    # the dataset level, but DEV_MODE sampling can still produce 0-positive labels.
+    weights = np.where(positive_counts > 0, negative_counts / np.maximum(positive_counts, 1.0), max_weight)
     weights = np.where(positive_counts < rare_threshold, weights * rare_boost, weights)
     weights = np.clip(weights, 0, max_weight)
     return torch.tensor(weights, dtype=torch.float32)

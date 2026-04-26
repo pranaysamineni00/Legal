@@ -123,15 +123,6 @@ _KW: dict[str, list[str]] = {
         r"not\s+transfer\s+.{0,20}(?:this\s+)?agreement\s+without",
         r"without\s+.{0,20}prior\s+.{0,10}written\s+consent\s+.{0,20}assign",
     ],
-    "Arbitration": [
-        r"arbitrat\w+",
-        r"binding\s+arbitration",
-        r"american\s+arbitration\s+association",
-        r"\bAAA\b.{0,30}arbitrat",
-        r"\bJAMS\b",
-        r"ICC\s+arbitration",
-        r"rules\s+of\s+arbitration",
-    ],
     "Audit Rights": [
         r"right\s+to\s+audit",
         r"audit\s+rights?",
@@ -171,14 +162,6 @@ _KW: dict[str, list[str]] = {
         r"waives?\s+.{0,20}right\s+to\s+(?:bring\s+)?(?:a\s+)?(?:legal\s+)?(?:action|suit|claim)",
         r"releases?\s+and\s+covenant\s+not\s+to\s+sue",
     ],
-    "Dispute Resolution": [
-        r"dispute\s+resolution",
-        r"resolv\w+\s+.{0,30}dispute",
-        r"mediation\s+.{0,30}arbitration",
-        r"executive\s+escalation",
-        r"good\s+faith\s+.{0,20}negotiation\s+.{0,20}dispute",
-        r"alternative\s+dispute\s+resolution",
-    ],
     "Document Name": [
         r"this\s+(?:master\s+)?(?:software\s+|service\s+|professional\s+services?\s+|license\s+|licensing\s+|subscription\s+|co-branding\s+|development\s+|supply\s+)?agreement",
         r"master\s+services?\s+agreement",
@@ -207,15 +190,6 @@ _KW: dict[str, list[str]] = {
         r"term\s+shall\s+end",
         r"(?:contract|agreement|term)\s+.{0,20}expires?\s+on",
         r"initial\s+term\s+.{0,20}ends?\s+on",
-    ],
-    "Force Majeure": [
-        r"force\s+majeure",
-        r"acts?\s+of\s+god",
-        r"circumstances?\s+beyond\s+.{0,30}(?:reasonable\s+)?control",
-        r"natural\s+disaster",
-        r"(?:pandemic|epidemic|outbreak|plague)",
-        r"war\s+(?:or\s+)?(?:terrorism|hostilities)",
-        r"events?\s+beyond\s+(?:a\s+)?party's\s+control",
     ],
     "Governing Law": [
         r"governing\s+law",
@@ -373,12 +347,6 @@ _KW: dict[str, list[str]] = {
         r"revenue\s+share",
         r"share\s+.{0,20}(?:net\s+)?(?:revenue|profit|proceeds)",
     ],
-    "Source Code Escrow": [
-        r"source\s+code\s+escrow",
-        r"deposit\s+.{0,30}source\s+code\s+.{0,30}escrow",
-        r"escrow\s+(?:agent|agreement|arrangement)\s+.{0,40}source",
-        r"escrow\s+of\s+source\s+code",
-    ],
     "Termination For Convenience": [
         r"terminat\w+\s+for\s+convenience",
         r"terminat\w+\s+.{0,40}without\s+cause",
@@ -491,9 +459,21 @@ def _extract_excerpt_via_llm(full_text: str, clause_name: str, client) -> str:
     if len(full_text) <= MAX_CHARS:
         return _call(full_text)
 
+    def _hard_split(s: str) -> list[str]:
+        # Hard split a paragraph longer than MAX_CHARS so no single chunk can
+        # overflow the LLM context (rare in normal contracts, but possible when
+        # a contract has no \n\n breaks).
+        return [s[i:i + MAX_CHARS] for i in range(0, len(s), MAX_CHARS)]
+
     chunks: list[str] = []
     cur = ""
     for para in full_text.split('\n\n'):
+        if len(para) > MAX_CHARS:
+            if cur:
+                chunks.append(cur)
+                cur = ""
+            chunks.extend(_hard_split(para))
+            continue
         if cur and len(cur) + len(para) + 2 > MAX_CHARS:
             chunks.append(cur)
             cur = para
@@ -531,59 +511,6 @@ def _find_snippet_by_terms(text: str, clause: str) -> str:
     return best_para
 
 
-_RISK_ORDER = {"HIGH": 0, "MEDIUM": 1, "LOW": 2}
-
-
-def _dedupe_by_snippet(results: list[dict]) -> list[dict]:
-    """Merge results that share the same supporting excerpt into a single entry.
-
-    When several clauses pick the exact same paragraph as their strongest
-    evidence, group them into one card. The merged entry keeps the highest-
-    confidence clause as primary (its name, category, and confidence drive
-    sorting and the badge), uses the worst risk level among the grouped
-    clauses, and lists every co-detected clause via co_clauses so the UI can
-    show them together. Without this step the same paragraph appears in 3-4
-    cards, each labeled with a different clause type — confusing and noisy."""
-
-    def _norm(s: str) -> str:
-        return re.sub(r'\s+', ' ', s).strip() if s else ''
-
-    groups: dict[str, list[dict]] = {}
-    for r in results:
-        key = _norm(r.get("snippet", ""))
-        if not key:
-            # No snippet — keep as standalone (key per-clause to avoid merging)
-            key = f"__nosnippet__::{r['clause']}"
-        groups.setdefault(key, []).append(r)
-
-    merged: list[dict] = []
-    for items in groups.values():
-        items.sort(key=lambda r: r["confidence"], reverse=True)
-        primary = items[0]
-        if len(items) == 1:
-            merged.append(primary)
-            continue
-
-        worst_risk = min((r["risk"] for r in items),
-                         key=lambda r: _RISK_ORDER.get(r, 3))
-        co_clauses = [
-            {
-                "clause":     r["clause"],
-                "confidence": r["confidence"],
-                "risk":       r["risk"],
-                "category":   r["category"],
-            }
-            for r in items
-        ]
-        merged_entry = dict(primary)
-        merged_entry["risk"] = worst_risk
-        merged_entry["co_clauses"] = co_clauses
-        merged.append(merged_entry)
-
-    merged.sort(key=lambda r: (_RISK_ORDER.get(r["risk"], 3), -r["confidence"]))
-    return merged
-
-
 def _trim_snippet(snippet: str, max_chars: int = 800) -> str:
     """Trim a snippet to max_chars, preferring sentence boundaries over word boundaries."""
     if len(snippet) <= max_chars:
@@ -599,34 +526,6 @@ def _trim_snippet(snippet: str, max_chars: int = 800) -> str:
     if word_cut > max_chars - 100:
         trimmed = trimmed[:word_cut]
     return trimmed.rstrip() + '…'
-
-
-def _classify_heuristic(text: str) -> list[dict]:
-    """Keyword-regex classifier. Returns detected clauses sorted by confidence."""
-    results: list[dict] = []
-
-    for clause in CUAD_CLAUSES:
-        patterns = _KW.get(clause, [])
-        if not patterns:
-            continue
-
-        total_matches = sum(
-            1 for p in patterns for _ in re.finditer(p, text, re.IGNORECASE)
-        )
-
-        if total_matches > 0:
-            confidence = min(0.52 + total_matches * 0.07, 0.97)
-            results.append({
-                "clause":     clause,
-                "confidence": round(confidence, 3),
-                "risk":       RISK_LEVELS.get(clause, "LOW"),
-                "category":   _get_category(clause),
-                "snippet":    _find_snippet(text, clause) or _find_snippet_by_terms(text, clause),
-                "detected":   True,
-            })
-
-    results.sort(key=lambda x: x["confidence"], reverse=True)
-    return results
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -655,7 +554,7 @@ class LegalClauseClassifier:
     def _load_checkpoint(self, path: str) -> None:
         try:
             import torch
-            from training import ModelArtifacts  # noqa: F401 — needed for unpickling
+            from training import ModelArtifacts, _TfIdfPipeline  # noqa: F401 — needed for unpickling
 
             device = torch.device(
                 "cuda" if torch.cuda.is_available()
@@ -728,6 +627,7 @@ class LegalClauseClassifier:
         n_labels = len(self.id_to_clause)
         window_probs = np.zeros((n_windows, n_labels), dtype=np.float32)
 
+        is_longformer = type(self.model).__name__.startswith("Longformer")
         for i in range(n_windows):
             ids = torch.tensor(enc["input_ids"][i:i+1], dtype=torch.long).to(self._device)
             mask = torch.tensor(enc["attention_mask"][i:i+1], dtype=torch.long).to(self._device)
@@ -736,6 +636,12 @@ class LegalClauseClassifier:
                 inputs["token_type_ids"] = torch.tensor(
                     enc["token_type_ids"][i:i+1], dtype=torch.long
                 ).to(self._device)
+            if is_longformer:
+                # Match training-time configuration: global attention on [CLS]
+                # so the classification head can attend across the full window.
+                gam = torch.zeros_like(ids)
+                gam[:, 0] = 1
+                inputs["global_attention_mask"] = gam
 
             with torch.no_grad():
                 logits = self.model(**inputs).logits.cpu().numpy()[0]
@@ -790,23 +696,18 @@ class LegalClauseClassifier:
 
     def classify(self, text: str) -> dict:
         clauses = self._classify_model(text)
-        # Count individual clause detections for the summary, not grouped cards —
-        # users want to see "5 high-risk clauses found", not "3 cards shown".
         high = medium = low = 0
-        total = 0
         for c in clauses:
-            items = c.get("co_clauses") or [{"risk": c["risk"]}]
-            for item in items:
-                total += 1
-                if item["risk"] == "HIGH":
-                    high += 1
-                elif item["risk"] == "MEDIUM":
-                    medium += 1
-                else:
-                    low += 1
+            risk = c["risk"]
+            if risk == "HIGH":
+                high += 1
+            elif risk == "MEDIUM":
+                medium += 1
+            else:
+                low += 1
         return {
             "mode":         self.mode,
-            "total":        total,
+            "total":        len(clauses),
             "risk_summary": {"HIGH": high, "MEDIUM": medium, "LOW": low},
             "clauses":      clauses,
         }
