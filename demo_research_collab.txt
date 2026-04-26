@@ -1,0 +1,329 @@
+JOINT RESEARCH COLLABORATION AND REVENUE SHARING AGREEMENT
+
+This Joint Research Collaboration and Revenue Sharing Agreement ("Agreement") is entered into as
+of June 10, 2025, by and between Helix BioAnalytics Corporation, a Massachusetts corporation with
+its principal place of business at 150 Kendall Square, Cambridge, Massachusetts 02142 ("Helix"),
+and Stratum Diagnostics GmbH, a German limited liability company with its principal place of
+business at Musterstraße 12, 80331 Munich, Germany ("Stratum"). Helix and Stratum are referred
+to individually as a "Party" and collectively as the "Parties."
+
+
+ARTICLE 1 — DEFINITIONS
+
+1.1 "Research Program" means the joint research and development activities described in Exhibit A
+aimed at developing next-generation genomic sequencing assays for oncology diagnostics.
+
+1.2 "Joint IP" means any invention, discovery, know-how, data, or other intellectual property
+conceived, created, or reduced to practice jointly by employees or contractors of both Parties
+in the course of the Research Program.
+
+1.3 "Background IP" means all intellectual property owned or controlled by a Party prior to the
+Effective Date, or developed by that Party independently of the Research Program.
+
+1.4 "Net Revenue" means gross revenues received from commercialization of any product or service
+embodying Joint IP, less returns, allowances, taxes, import duties, freight, and insurance costs
+directly attributable to such revenues.
+
+1.5 "Commercialization Territory" means the United States, the European Union, the United Kingdom,
+Canada, Australia, Japan, and South Korea.
+
+
+ARTICLE 2 — JOINT RESEARCH PROGRAM
+
+2.1 Scope. The Parties shall conduct the Research Program as described in Exhibit A, contributing
+personnel, equipment, and resources as specified therein. Each Party shall designate a project
+lead responsible for coordinating its contributions to the Research Program.
+
+2.2 Steering Committee. The Parties shall establish a Joint Steering Committee ("JSC") consisting
+of three (3) representatives from each Party. The JSC shall meet quarterly to review progress,
+allocate resources, and approve any material changes to the Research Program.
+
+2.3 Records and Reporting. Each Party shall maintain complete and accurate records of all research
+activities, data, and results generated under the Research Program. The Parties shall share all
+such records with the other Party on a monthly basis.
+
+
+ARTICLE 3 — JOINT INTELLECTUAL PROPERTY OWNERSHIP
+
+3.1 Joint Ownership. All Joint IP developed under this Agreement shall be jointly owned by the
+Parties in equal, undivided shares, with each Party holding a fifty percent (50%) ownership interest.
+The Parties shall cooperate in filing, prosecuting, and maintaining patent applications covering
+Joint IP in the Commercialization Territory. All costs of such filings shall be shared equally.
+
+3.2 Exploitation Rights. Each Party shall have the right to exploit the jointly owned intellectual
+property without accounting to the other Party, subject to the revenue sharing obligations set
+forth in Article 4. Neither Party may license Joint IP to a third party without the prior written
+consent of the other Party.
+
+3.3 Co-Ownership Administration. The Parties shall enter into a separate joint ownership agreement
+within ninety (90) days of the Effective Date to govern the administration of Joint IP, including
+prosecution strategy, maintenance decisions, and enforcement against third-party infringers.
+Decisions regarding enforcement of jointly owned patent rights shall require mutual written
+agreement. Each joint inventor shall execute assignments confirming joint inventorship as required.
+
+3.4 Background IP. Each Party retains sole ownership of its respective Background IP. No license
+to Background IP is granted under this Agreement except as expressly set forth herein.
+
+3.5 License to Background IP. Each Party hereby grants to the other Party a non-exclusive,
+royalty-free license to use its Background IP solely to the extent necessary to conduct the
+Research Program during the term of this Agreement. Such license shall not extend to any
+commercialization activities outside the Research Program.
+
+
+ARTICLE 4 — REVENUE AND PROFIT SHARING
+
+4.1 Revenue Share. The Parties shall share all Net Revenue derived from the commercialization
+of products and services based on Joint IP in the following proportions: sixty percent (60%) to
+Helix and forty percent (40%) to Stratum ("Revenue Share"). The Revenue Share allocation reflects
+each Party's respective contribution of personnel and resources to the Research Program as set
+forth in Exhibit A.
+
+4.2 Reporting and Payment. Each Party that receives Net Revenue shall provide the other Party
+with a detailed written revenue report within thirty (30) days following the end of each calendar
+quarter, accompanied by payment of the other Party's applicable revenue share. Revenue reports
+shall include a breakdown of gross revenues, permitted deductions, Net Revenue calculation, and
+the applicable Revenue Share payment.
+
+4.3 Profit Sharing for Joint Products. In addition to the Revenue Share in Section 4.1, the
+Parties shall share net profits from any jointly commercialized product ("Joint Product") in equal
+fifty percent (50%) shares. Net profits shall mean Net Revenue from Joint Products less all direct
+and attributable indirect costs incurred by either Party in connection with the development,
+manufacture, marketing, and sale of such Joint Products, as agreed upon in the applicable
+commercialization plan.
+
+4.4 Royalties from Third-Party Licenses. If the Parties mutually agree to license any Joint IP
+to a third party, royalties received from such third-party licenses shall be shared between the
+Parties in the same Revenue Share proportions set forth in Section 4.1.
+
+4.5 Audit Rights for Revenue Verification. Each Party shall have the right, exercisable once per
+calendar year upon thirty (30) days' prior written notice, to audit the other Party's books, records,
+and accounts to verify the accuracy of revenue reports and Revenue Share payments. Audits shall be
+conducted by an independent certified public accountant reasonably acceptable to both parties.
+
+
+ARTICLE 5 — EXCLUSIVITY AND NON-COMPETE
+
+5.1 Exclusivity. During the term of this Agreement and for a period of eighteen (18) months
+following its expiration or termination ("Exclusivity Period"), each Party agrees, on an exclusive
+basis, not to conduct research, develop, or commercialize any product or technology that is
+substantially similar to the Joint IP outside of the Research Program, without the prior written
+consent of the other Party. The Parties acknowledge that this exclusivity is a material inducement
+for each Party entering into this Agreement and reflects the significant investment each is making.
+
+5.2 Non-Competition. During the term of this Agreement and for a period of twenty-four (24) months
+following its expiration or termination, neither Party shall, directly or indirectly, engage in
+any business activity that competes directly with the commercial applications of the Joint IP in
+the oncology diagnostics field within the Commercialization Territory. For the purposes of this
+Section, "compete directly" means offering a product or service that performs substantially the
+same diagnostic function as a Joint Product and targets the same clinical indications.
+
+5.3 No-Solicit of Employees. During the term of this Agreement and for a period of twenty-four
+(24) months following its expiration or termination, neither Party shall, directly or indirectly,
+solicit, recruit, or hire any employee of the other Party who was involved in the Research Program,
+without the prior written consent of the other Party. This provision does not prohibit general
+employment advertising not specifically targeted at the other Party's personnel.
+
+5.4 Non-Solicitation of Customers. Neither Party shall, during the term or for a period of twelve
+(12) months following termination, directly solicit or approach any customer or commercial partner
+of the other Party that was introduced in connection with the Research Program, for the purpose of
+entering into a competing arrangement.
+
+5.5 Non-Disparagement. Each Party agrees, during the term and for a period of three (3) years
+following termination, not to make, publish, or authorize any negative, disparaging, or
+defamatory statements, whether oral or written, about the other Party, its products, services,
+leadership, or employees, in any public forum, including press releases, social media, scientific
+publications, or investor communications. This provision does not restrict either Party from making
+truthful statements in connection with a legal proceeding, regulatory inquiry, or compliance
+disclosure required by applicable law.
+
+
+ARTICLE 6 — MOST FAVORED NATION AND ROFR
+
+6.1 Most Favored Nation Licensing Terms. If either Party grants a third party a license to any
+Joint IP on terms that are materially more favorable than those offered to the other Party under
+this Agreement, the Party granting such license shall promptly notify the other Party and
+automatically extend to the other Party the benefit of those more favorable terms. Each Party
+warrants that no license to Joint IP has been granted or is currently pending on terms more
+favorable than those set forth in this Agreement.
+
+6.2 Right of First Negotiation. If either Party (the "Offering Party") proposes to sell, assign,
+or exclusively license all or substantially all of its interest in any Joint IP to a third party,
+the Offering Party shall first provide written notice to the other Party (the "ROFN Notice"),
+describing the proposed disposition in reasonable detail. The other Party shall have forty-five
+(45) days following receipt of the ROFN Notice to commence good-faith negotiations with the
+Offering Party regarding such acquisition or license. If the Parties do not execute a definitive
+agreement within ninety (90) days following the ROFN Notice, the Offering Party may proceed with
+the proposed transaction with a third party on terms no more favorable to the third party than
+those last offered to the other Party.
+
+6.3 Right of First Refusal for Future Research. If either Party identifies an opportunity to
+conduct additional joint research related to the subject matter of the Research Program and wishes
+to engage a third party for such research, such Party shall first offer the other Party the right
+of first refusal to participate in such additional research on the same terms and conditions
+proposed for the third party. The other Party shall have thirty (30) days to exercise this ROFR.
+
+
+ARTICLE 7 — COVENANT NOT TO SUE
+
+7.1 Covenant. Each Party hereby grants to the other Party a covenant not to sue the other Party
+or its Affiliates for infringement of any of its solely owned Background IP that is necessarily
+practiced by the other Party in conducting the Research Program as described in Exhibit A. This
+covenant not to sue is limited to uses within the scope of the Research Program and does not
+extend to any commercial use of Background IP outside the Research Program.
+
+7.2 Scope. For the avoidance of doubt, this covenant not to sue shall not prevent either Party
+from bringing claims for breach of contract, misappropriation of trade secrets, or infringement
+of Background IP that occurs outside the scope of the Research Program. Any purported waiver of
+rights beyond this limited scope shall not be implied from this Section.
+
+7.3 Mutual Release. The Parties mutually agree not to bring, file, or initiate any legal action,
+suit, or proceeding in any forum — administrative, judicial, or otherwise — based on any claim
+of infringement of intellectual property rights that are necessarily practiced in the course of
+the Research Program, provided that such conduct falls within the agreed scope of the Research
+Program at the relevant time.
+
+
+ARTICLE 8 — CHANGE OF CONTROL
+
+8.1 Notification. Each Party shall provide the other Party with written notice within five (5)
+business days upon becoming aware of any impending change of control, including any merger,
+acquisition, consolidation, or sale of all or substantially all of its assets or equity (whether
+by a single transaction or a series of related transactions).
+
+8.2 Option to Terminate. Upon receipt of a change of control notice, the non-affected Party shall
+have sixty (60) days to elect, in its sole discretion, to either: (a) continue this Agreement
+under the terms set forth herein, with the successor entity assuming all obligations; or (b)
+terminate this Agreement upon thirty (30) days' written notice without penalty.
+
+8.3 Competing Acquirer. If a change of control results in a Party being acquired by an entity that
+is a direct competitor of the other Party in the Commercialization Territory, the non-affected
+Party may terminate this Agreement immediately upon written notice, regardless of the sixty (60)
+day period in Section 8.2.
+
+
+ARTICLE 9 — TERM AND POST-TERMINATION SERVICES
+
+9.1 Term. This Agreement shall commence on the Effective Date and continue for an initial term of
+five (5) years, unless earlier terminated in accordance with this Article 9. The Parties may
+mutually agree to extend this Agreement for additional periods.
+
+9.2 Termination for Convenience. Either Party may terminate this Agreement for any reason upon
+one hundred eighty (180) days' prior written notice.
+
+9.3 Termination for Cause. Either Party may terminate this Agreement immediately upon written
+notice if the other Party materially breaches this Agreement and fails to cure such breach within
+sixty (60) days of written notice specifying the breach in reasonable detail.
+
+9.4 Post-Termination Services and Obligations. Following the expiration or termination of this
+Agreement for any reason:
+
+(a) Wind-Down Services: For a period of one hundred eighty (180) days following the termination
+date, each Party shall continue to perform such activities as are reasonably necessary to conclude
+ongoing experiments, preserve biological samples, and complete any research that is at a critical
+juncture and cannot be paused without material loss of data or scientific value. Such post-
+termination services shall be performed at each Party's own cost unless otherwise agreed in writing.
+
+(b) Data Transfer: Each Party shall promptly provide the other Party with complete copies of all
+research data, results, laboratory notebooks, and records generated under the Research Program,
+in a mutually agreed electronic format.
+
+(c) Revenue Obligations Survival: Revenue sharing obligations under Article 4 shall survive
+termination and continue for as long as either Party derives Net Revenue from commercialization
+of any Joint IP.
+
+(d) Joint IP Disposition: Following termination, the Parties shall negotiate in good faith
+regarding the disposition or continued exploitation of Joint IP, including whether to jointly
+commercialize, license to third parties, or assign all rights to one Party.
+
+
+ARTICLE 10 — FORCE MAJEURE
+
+10.1 Force Majeure Events. Neither Party shall be liable for any failure or delay in performing
+its obligations under this Agreement to the extent such failure or delay results from events
+beyond such Party's reasonable control, including acts of God, natural disasters, pandemics,
+epidemics, government-imposed restrictions, war, terrorism, civil unrest, or widespread failures
+of third-party infrastructure or supply chains ("Force Majeure Event").
+
+10.2 Notification Requirements. A Party experiencing a Force Majeure Event shall: (a) notify the
+other Party in writing within five (5) business days of the commencement of the Force Majeure
+Event; (b) describe in reasonable detail the nature, expected duration, and anticipated impact of
+the event; and (c) use commercially reasonable efforts to resume performance as quickly as
+practicable.
+
+10.3 Extended Force Majeure. If a Force Majeure Event continues for more than ninety (90)
+consecutive days, either Party may terminate this Agreement on thirty (30) days' written notice
+without liability for the terminated obligations.
+
+
+ARTICLE 11 — DISPUTE RESOLUTION AND ARBITRATION
+
+11.1 Governing Law. This Agreement shall be governed by the laws of the State of New York, without
+regard to its conflict of laws rules.
+
+11.2 Good-Faith Negotiation. In the event of any dispute arising out of or relating to this
+Agreement, the Parties shall first attempt to resolve the dispute through good-faith negotiation
+between senior management representatives. If the dispute is not resolved within thirty (30) days
+of written notice, either Party may escalate to binding arbitration.
+
+11.3 Arbitration. Any dispute not resolved pursuant to Section 11.2 shall be submitted to binding
+arbitration in accordance with the rules of the International Chamber of Commerce (ICC Arbitration
+Rules). The arbitral tribunal shall consist of three (3) arbitrators, one appointed by each Party
+and the third appointed by the two Party-appointed arbitrators. The seat of arbitration shall be
+New York, New York. Proceedings shall be conducted in English.
+
+11.4 Third Party Beneficiary. The Parties acknowledge that this Agreement is entered into solely
+for the benefit of the Parties and their respective successors and permitted assigns. No third
+party shall be a beneficiary of or have any rights under this Agreement, and no third parties
+shall be entitled to rely on any provision hereof.
+
+
+ARTICLE 12 — GENERAL PROVISIONS
+
+12.1 Entire Agreement. This Agreement, together with all Exhibits, constitutes the entire
+agreement of the Parties with respect to its subject matter.
+
+12.2 Amendments. No modification of this Agreement shall be effective unless in a written
+instrument executed by both Parties.
+
+12.3 Notices. All notices shall be in writing and delivered by hand, courier, or certified mail
+to the addresses set forth in the preamble or as otherwise designated in writing.
+
+12.4 Waiver. No failure or delay in exercising any right shall constitute a waiver thereof.
+
+12.5 Severability. If any provision of this Agreement is held invalid, the remaining provisions
+shall continue in full force and effect.
+
+12.6 Counterparts and Electronic Signatures. This Agreement may be signed in counterparts, each
+of which shall be deemed an original. Electronic signatures shall have the same force and effect
+as original signatures.
+
+
+EXHIBIT A — RESEARCH PROGRAM DESCRIPTION
+
+Phase 1 (Months 1–18): Biomarker Discovery
+- Identification and validation of genomic biomarkers associated with early-stage solid tumors
+- Helix contribution: bioinformatics platform, sequencing infrastructure, 15 FTE
+- Stratum contribution: clinical sample repository (5,000+ specimens), diagnostic assay expertise, 10 FTE
+
+Phase 2 (Months 19–36): Assay Development
+- Development and optimization of multiplex sequencing assay based on Phase 1 findings
+- Regulatory pre-submission meetings with FDA and EMA
+- Joint contribution: equally shared resources
+
+Phase 3 (Months 37–60): Clinical Validation
+- Multi-site clinical validation study (target n=2,000)
+- Regulatory submission and market authorization
+- Commercial launch preparation in Commercialization Territory
+
+
+[SIGNATURE PAGE FOLLOWS]
+
+IN WITNESS WHEREOF, the Parties have executed this Joint Research Collaboration and Revenue
+Sharing Agreement as of the date first written above.
+
+HELIX BIOANALYTICS CORPORATION             STRATUM DIAGNOSTICS GMBH
+
+By: _____________________________          By: _____________________________
+Name: Dr. Rachel Kim                        Name: Dr. Friedrich Bauer
+Title: Chief Scientific Officer             Title: Managing Director
+Date: June 10, 2025                         Date: June 10, 2025

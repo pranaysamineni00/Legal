@@ -1,0 +1,378 @@
+VENDOR SERVICES AGREEMENT
+
+This Vendor Services Agreement ("Agreement") is entered into as of January 15, 2025, by and between
+Nexora Technologies Inc., a Delaware corporation with its principal place of business at 500 Innovation
+Drive, San Francisco, California 94105 ("Company"), and DataBridge Solutions LLC, a Texas limited
+liability company with its principal place of business at 1200 Commerce Blvd, Austin, Texas 78701
+("Vendor").
+
+RECITALS
+
+WHEREAS, Company desires to engage Vendor to provide certain data processing and analytics services;
+and WHEREAS, Vendor desires to provide such services to Company on the terms and conditions set forth
+herein; NOW, THEREFORE, in consideration of the mutual covenants contained herein, the parties agree
+as follows:
+
+
+ARTICLE 1 — DEFINITIONS
+
+1.1 "Services" means the data ingestion, transformation, analytics pipeline, and reporting services
+described in Exhibit A attached hereto.
+
+1.2 "Deliverables" means all work product, reports, software, code, documentation, and other materials
+created by Vendor specifically for Company under this Agreement.
+
+1.3 "Confidential Information" means any non-public information disclosed by one party to the other
+in connection with this Agreement, whether disclosed orally, in writing, or by any other means, that
+is designated as confidential or that reasonably should be understood to be confidential given the
+nature of the information and the circumstances of disclosure.
+
+1.4 "Intellectual Property Rights" means all patents, copyrights, trademarks, trade secrets, and
+any other proprietary rights recognized in any jurisdiction worldwide.
+
+1.5 "Effective Date" means January 15, 2025.
+
+
+ARTICLE 2 — SERVICES AND DELIVERABLES
+
+2.1 Scope of Services. Vendor shall perform the Services as described in Exhibit A in accordance with
+the timelines, specifications, and quality standards set forth therein. Vendor shall assign qualified
+personnel with appropriate expertise to perform the Services.
+
+2.2 Change Orders. Any modification to the scope of Services must be agreed upon in writing by both
+parties through a signed Change Order. Vendor shall not perform any additional services beyond the
+agreed scope without prior written authorization from Company.
+
+2.3 Subcontracting. Vendor shall not subcontract any portion of the Services to a third party without
+the prior written consent of Company. Any approved subcontractor shall be bound by obligations no less
+restrictive than those imposed on Vendor under this Agreement.
+
+
+ARTICLE 3 — COMPENSATION AND PAYMENT TERMS
+
+3.1 Fees. Company shall pay Vendor the fees set forth in Exhibit B. All fees are stated in United
+States dollars.
+
+3.2 Payment Terms. Company shall pay all undisputed invoices within thirty (30) days of receipt of
+a properly submitted invoice. Invoices shall be submitted monthly in arrears.
+
+3.3 Late Payments. Undisputed amounts not paid within thirty (30) days of the invoice date shall
+accrue interest at the lesser of one and one-half percent (1.5%) per month or the maximum rate
+permitted by applicable law.
+
+3.4 Disputed Invoices. Company shall notify Vendor in writing of any disputed invoice amounts within
+fifteen (15) days of receipt. The parties shall work in good faith to resolve any such dispute within
+thirty (30) days.
+
+3.5 Taxes. Each party shall be responsible for taxes imposed on its own income. Vendor shall be
+solely responsible for all employment taxes and withholding related to its personnel.
+
+
+ARTICLE 4 — INTELLECTUAL PROPERTY
+
+4.1 Assignment of Deliverables. Vendor hereby irrevocably assigns to Company all right, title, and
+interest in and to all Deliverables, including all Intellectual Property Rights therein. Vendor agrees
+to execute any documents and take any actions reasonably required by Company to perfect, record, or
+enforce such assignment in any jurisdiction. All Deliverables shall be considered works made for hire
+to the maximum extent permitted by applicable law; to the extent they do not qualify as works made
+for hire, Vendor assigns all rights therein to Company.
+
+4.2 Vendor Background IP. Vendor retains ownership of any pre-existing tools, methodologies,
+frameworks, and know-how developed independently of this Agreement ("Background IP"). To the extent
+any Deliverable incorporates Background IP, Vendor grants Company a perpetual, irrevocable,
+royalty-free, worldwide license to use such Background IP solely as incorporated in the Deliverables.
+
+4.3 License Grant to Vendor Tools. If Vendor uses any third-party software or open-source components
+in the Deliverables, Vendor shall identify all such components and ensure that Company's use of the
+Deliverables does not violate any third-party license terms.
+
+
+ARTICLE 5 — CONFIDENTIALITY
+
+5.1 Obligations. Each party agrees to: (a) hold the other party's Confidential Information in strict
+confidence using the same degree of care it uses to protect its own confidential information, but in
+no event less than reasonable care; (b) not disclose the other party's Confidential Information to
+any third party without prior written consent; and (c) use the other party's Confidential Information
+solely for the purpose of performing its obligations or exercising its rights under this Agreement.
+
+5.2 Exceptions. The obligations in Section 5.1 do not apply to information that: (a) is or becomes
+publicly available through no fault of the receiving party; (b) was rightfully known to the receiving
+party prior to disclosure; (c) is independently developed by the receiving party without reference to
+the Confidential Information; or (d) is required to be disclosed by law or court order, provided that
+the receiving party gives the disclosing party prompt written notice and reasonably cooperates in
+seeking a protective order.
+
+5.3 Term of Confidentiality. The confidentiality obligations set forth in this Article 5 shall
+survive termination or expiration of this Agreement for a period of three (3) years.
+
+
+ARTICLE 6 — REPRESENTATIONS AND WARRANTIES
+
+6.1 Vendor Representations. Vendor represents and warrants that: (a) it has full power and authority
+to enter into this Agreement; (b) the Services will be performed in a professional and workmanlike
+manner consistent with industry standards; (c) the Deliverables will conform to the specifications
+set forth in Exhibit A for a period of ninety (90) days following acceptance by Company ("Warranty
+Period"); and (d) the Deliverables will not infringe any third-party Intellectual Property Rights.
+
+6.2 Disclaimer. EXCEPT AS EXPRESSLY SET FORTH IN SECTION 6.1, VENDOR MAKES NO WARRANTIES,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR
+A PARTICULAR PURPOSE, OR NON-INFRINGEMENT. VENDOR DOES NOT WARRANT THAT THE SERVICES OR
+DELIVERABLES WILL BE ERROR-FREE OR UNINTERRUPTED.
+
+
+ARTICLE 7 — INDEMNIFICATION
+
+7.1 Vendor Indemnification. Vendor shall defend, indemnify, and hold harmless Company and its
+officers, directors, employees, agents, successors, and assigns from and against any and all claims,
+damages, losses, liabilities, costs, and expenses (including reasonable attorneys' fees) arising out
+of or relating to: (a) any breach of Vendor's representations, warranties, or obligations under this
+Agreement; (b) any negligent or wrongful act or omission of Vendor or its personnel; (c) any claim
+that the Deliverables infringe any third-party Intellectual Property Rights; or (d) any violation of
+applicable law by Vendor. Vendor's indemnification obligations shall apply regardless of whether the
+claim arises in contract, tort, strict liability, or otherwise, and shall not be limited by any
+applicable insurance coverage.
+
+7.2 Company Indemnification. Company shall defend, indemnify, and hold harmless Vendor from and
+against claims arising out of Company's gross negligence or willful misconduct in connection with
+this Agreement.
+
+7.3 Indemnification Procedure. The indemnified party shall: (a) promptly notify the indemnifying
+party in writing of any claim; (b) give the indemnifying party sole control of the defense and
+settlement of such claim; and (c) provide reasonable cooperation to the indemnifying party at the
+indemnifying party's expense.
+
+
+ARTICLE 8 — LIMITATION OF LIABILITY
+
+8.1 Exclusion of Consequential Damages. IN NO EVENT SHALL EITHER PARTY BE LIABLE TO THE OTHER FOR
+ANY INDIRECT, INCIDENTAL, CONSEQUENTIAL, SPECIAL, EXEMPLARY, OR PUNITIVE DAMAGES, INCLUDING LOSS
+OF PROFITS, LOSS OF REVENUE, LOSS OF DATA, LOSS OF GOODWILL, OR COST OF SUBSTITUTE GOODS OR
+SERVICES, EVEN IF SUCH PARTY HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+
+8.2 Cap on Liability. EACH PARTY'S TOTAL CUMULATIVE LIABILITY ARISING OUT OF OR RELATED TO THIS
+AGREEMENT, WHETHER IN CONTRACT, TORT (INCLUDING NEGLIGENCE), STRICT LIABILITY, OR OTHERWISE, SHALL
+NOT EXCEED THE TOTAL FEES PAID OR PAYABLE BY COMPANY TO VENDOR DURING THE THREE (3) MONTH PERIOD
+IMMEDIATELY PRECEDING THE EVENT GIVING RISE TO SUCH LIABILITY. THIS LIMITATION SHALL APPLY
+NOTWITHSTANDING ANY FAILURE OF ESSENTIAL PURPOSE OF ANY LIMITED REMEDY.
+
+8.3 Exceptions. The limitations in Sections 8.1 and 8.2 shall not apply to: (a) a party's
+indemnification obligations; (b) damages arising from gross negligence or willful misconduct; or
+(c) a party's breach of its confidentiality obligations.
+
+
+ARTICLE 9 — TERM AND TERMINATION
+
+9.1 Term. This Agreement shall commence on the Effective Date and continue for an initial term of
+two (2) years ("Initial Term"), unless earlier terminated in accordance with this Article 9. Upon
+expiration of the Initial Term and each subsequent renewal term, this Agreement shall automatically
+renew for successive one (1) year periods unless either party provides the other with written notice
+of non-renewal no later than ninety (90) days prior to the end of the then-current term.
+
+9.2 Termination for Convenience. Company may terminate this Agreement or any Statement of Work at
+any time for any reason or no reason, with or without cause, upon fifteen (15) days' prior written
+notice to Vendor. In the event of termination for convenience by Company, Company shall pay Vendor
+only for Services actually performed and accepted up to the effective date of termination; no further
+amounts shall be owed.
+
+9.3 Termination for Cause. Either party may terminate this Agreement immediately upon written notice
+if the other party: (a) materially breaches this Agreement and fails to cure such breach within
+thirty (30) days after receiving written notice specifying the breach in detail; (b) becomes
+insolvent, makes a general assignment for the benefit of creditors, or has a receiver appointed; or
+(c) ceases to operate in the ordinary course of business.
+
+9.4 Effect of Termination. Upon termination or expiration: (a) Vendor shall promptly return or
+destroy all Company Confidential Information; (b) each party shall pay all amounts due and owing as
+of the termination date; and (c) all provisions that by their nature should survive shall survive,
+including Articles 4, 5, 7, 8, 10, and 11.
+
+
+ARTICLE 10 — NON-SOLICITATION AND NON-COMPETITION
+
+10.1 Non-Solicitation of Personnel. During the term of this Agreement and for a period of twenty-four
+(24) months following its expiration or termination, neither party shall, directly or indirectly,
+solicit, recruit, or hire any employee or contractor of the other party who was involved in the
+performance of this Agreement, without the prior written consent of the other party.
+
+10.2 Non-Competition. During the term of this Agreement and for a period of eighteen (18) months
+following its expiration or termination, Vendor shall not, directly or indirectly, provide services
+that are substantially similar to the Services to any direct competitor of Company operating in the
+same geographic markets. For purposes of this Section, "direct competitor" means any entity that
+derives more than twenty percent (20%) of its revenues from products or services that compete
+directly with Company's core product offerings as of the date of this Agreement.
+
+10.3 Remedies. The parties acknowledge that any breach of this Article 10 would cause irreparable
+harm for which monetary damages would be an inadequate remedy, and that the non-breaching party
+shall be entitled to seek equitable relief, including injunction, without the requirement of posting
+any bond.
+
+
+ARTICLE 11 — MOST FAVORED CUSTOMER
+
+11.1 Most Favored Customer Pricing. Vendor represents and warrants that the fees charged to Company
+under this Agreement are no less favorable than the lowest fees charged by Vendor to any other
+customer for substantially similar services in substantially similar volumes during the term of this
+Agreement. If Vendor offers or provides substantially similar services to any other customer at lower
+fees or on more favorable terms, Vendor shall immediately notify Company and automatically reduce
+Company's fees to match such lower fees or more favorable terms, retroactive to the date such
+lower fees were first offered to such other customer.
+
+11.2 Annual Pricing Review. In connection with each renewal of this Agreement, Vendor shall provide
+Company with a written certification confirming that Company continues to receive the most favored
+customer pricing as described in Section 11.1, along with supporting documentation as reasonably
+requested by Company.
+
+
+ARTICLE 12 — AUDIT RIGHTS
+
+12.1 Audit Rights. Company and its authorized representatives shall have the right, upon fifteen (15)
+days' prior written notice, to audit Vendor's books, records, and systems to verify Vendor's
+compliance with the terms of this Agreement, including pricing, data handling practices, and
+security controls. Vendor shall cooperate fully with any such audit and provide reasonable access to
+its facilities and records. Audits shall be conducted no more than twice per calendar year during
+normal business hours.
+
+12.2 Security Assessments. Company reserves the right to conduct, or commission a third party to
+conduct, an annual security assessment of Vendor's information security controls, including
+penetration testing, vulnerability scanning, and review of security policies and procedures. Vendor
+shall remediate any critical or high-severity findings within thirty (30) days and material findings
+within ninety (90) days of notification.
+
+
+ARTICLE 13 — INSURANCE
+
+13.1 Insurance Requirements. During the term of this Agreement, Vendor shall maintain, at its own
+expense, the following insurance coverages with insurers reasonably acceptable to Company: (a)
+Commercial General Liability Insurance with limits of not less than $2,000,000 per occurrence and
+$4,000,000 in the aggregate; (b) Professional Liability (Errors & Omissions) Insurance with limits
+of not less than $2,000,000 per claim; (c) Cyber Liability Insurance with limits of not less than
+$2,000,000 per occurrence; and (d) Workers' Compensation Insurance as required by applicable law.
+
+13.2 Evidence of Insurance. Upon request, Vendor shall provide Company with certificates of
+insurance and additional insured endorsements. Vendor shall provide thirty (30) days' prior written
+notice of cancellation or material reduction in coverage.
+
+
+ARTICLE 14 — DATA PROTECTION AND SECURITY
+
+14.1 Data Security. Vendor shall implement and maintain commercially reasonable technical and
+organizational security measures to protect Company data from unauthorized access, disclosure, or
+destruction, including encryption of data in transit and at rest, access controls, and regular
+security assessments.
+
+14.2 Data Breach Notification. In the event of any unauthorized access to or disclosure of Company
+data ("Security Incident"), Vendor shall notify Company within forty-eight (48) hours of discovery,
+provide a detailed description of the incident, cooperate with Company's investigation, and take
+immediate steps to contain and remediate the incident.
+
+14.3 Data Retention and Deletion. Upon termination of this Agreement or upon Company's request,
+Vendor shall promptly and securely delete or return all Company data in its possession and certify
+such deletion in writing within thirty (30) days.
+
+
+ARTICLE 15 — FORCE MAJEURE
+
+15.1 Force Majeure Event. Neither party shall be liable for any delay or failure to perform its
+obligations under this Agreement to the extent that such delay or failure is caused by circumstances
+beyond such party's reasonable control, including acts of God, natural disasters, pandemics,
+government actions, war, terrorism, labor disputes, or failures of third-party infrastructure
+providers ("Force Majeure Event").
+
+15.2 Notice and Mitigation. A party seeking to invoke force majeure shall: (a) promptly notify the
+other party in writing upon becoming aware of the Force Majeure Event, specifying the nature and
+expected duration; (b) use commercially reasonable efforts to mitigate the impact of such event and
+resume performance as soon as practicable; and (c) provide regular updates regarding the status of
+the Force Majeure Event.
+
+15.3 Extended Force Majeure. If a Force Majeure Event continues for more than sixty (60) consecutive
+days, either party may terminate this Agreement upon fifteen (15) days' written notice without
+further liability, other than payment for Services already performed and accepted.
+
+
+ARTICLE 16 — GOVERNING LAW AND DISPUTE RESOLUTION
+
+16.1 Governing Law. This Agreement shall be governed by and construed in accordance with the laws
+of the State of Delaware, without regard to its conflict of laws principles.
+
+16.2 Dispute Resolution. In the event of any dispute arising out of or relating to this Agreement,
+the parties shall first attempt to resolve the dispute through good-faith negotiation between senior
+representatives of each party. If the dispute is not resolved within thirty (30) days of written
+notice of the dispute, either party may pursue its remedies in the courts of competent jurisdiction
+as set forth in Section 16.3.
+
+16.3 Jurisdiction and Venue. Each party hereby irrevocably consents to the exclusive jurisdiction
+and venue of the state and federal courts located in New Castle County, Delaware for any legal
+action arising under this Agreement and waives any objection to such venue.
+
+16.4 Waiver of Jury Trial. EACH PARTY HEREBY IRREVOCABLY WAIVES ITS RIGHT TO A TRIAL BY JURY IN
+ANY ACTION OR PROCEEDING ARISING OUT OF OR RELATING TO THIS AGREEMENT.
+
+
+ARTICLE 17 — GENERAL PROVISIONS
+
+17.1 Entire Agreement. This Agreement, together with all Exhibits, constitutes the entire agreement
+between the parties with respect to its subject matter and supersedes all prior and contemporaneous
+agreements, representations, and understandings.
+
+17.2 Amendments. This Agreement may not be amended except by a written instrument signed by
+authorized representatives of both parties.
+
+17.3 Waiver. No failure or delay by either party in exercising any right under this Agreement shall
+constitute a waiver of such right.
+
+17.4 Severability. If any provision of this Agreement is held invalid, illegal, or unenforceable,
+the remaining provisions shall remain in full force and effect.
+
+17.5 Notices. All notices under this Agreement shall be in writing and delivered by: (a) hand; (b)
+overnight courier; or (c) certified mail, return receipt requested, to the addresses set forth in
+the preamble. Notices shall be deemed given upon receipt.
+
+17.6 Anti-Assignment. Neither party may assign this Agreement or any of its rights or obligations
+hereunder, in whole or in part, whether by operation of law (including by merger, acquisition, or
+change of control) or otherwise, without the prior written consent of the other party, which consent
+shall not be unreasonably withheld or delayed. Any purported assignment in violation of this Section
+shall be null and void. Notwithstanding the foregoing, Company may assign this Agreement without
+Vendor's consent to an affiliate or in connection with a merger or acquisition of all or substantially
+all of Company's assets, provided that Company provides Vendor written notice of such assignment
+within ten (10) days.
+
+17.7 Change of Control. Vendor shall notify Company in writing within five (5) business days of any
+change of control of Vendor, including any merger, acquisition, or sale of all or substantially all
+of Vendor's assets or equity. Company shall have the right to terminate this Agreement without
+penalty within thirty (30) days of receiving notice of such change of control.
+
+17.8 Counterparts. This Agreement may be executed in one or more counterparts, each of which shall
+be deemed an original and all of which together shall constitute one and the same instrument.
+Electronic signatures shall be deemed valid.
+
+
+EXHIBIT A — SCOPE OF SERVICES
+
+Vendor shall provide the following services:
+1. Data ingestion pipeline supporting structured and semi-structured data formats (CSV, JSON, Parquet)
+2. Automated data quality validation with anomaly detection and alerting
+3. Analytics dashboard with real-time reporting and export functionality
+4. Monthly performance reports summarizing key metrics and trend analysis
+5. API integration services connecting Company's internal systems to Vendor's platform
+6. Dedicated technical support (8x5 during business hours) with 4-hour response SLA for critical issues
+
+
+EXHIBIT B — FEES
+
+Monthly Platform Fee: $18,500
+Implementation Fee (one-time): $45,000
+Additional API calls beyond 10M/month: $0.002 per call
+Support tier upgrade (24x7): $4,000/month additional
+
+All fees subject to annual increase not to exceed 4% per year with 60 days' prior written notice.
+
+
+[SIGNATURE PAGE FOLLOWS]
+
+IN WITNESS WHEREOF, the parties have executed this Vendor Services Agreement as of the Effective Date.
+
+NEXORA TECHNOLOGIES INC.                    DATABRIDGE SOLUTIONS LLC
+
+By: _____________________________          By: _____________________________
+Name: Sarah Chen                            Name: Marcus Webb
+Title: Chief Operating Officer              Title: Chief Executive Officer
+Date: January 15, 2025                      Date: January 15, 2025

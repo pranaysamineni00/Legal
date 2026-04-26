@@ -1,0 +1,320 @@
+SOFTWARE LICENSE AND DISTRIBUTION AGREEMENT
+
+This Software License and Distribution Agreement ("Agreement") is entered into as of March 1, 2025,
+by and between Orion Software Group Inc., a California corporation with its principal place of
+business at 2200 Tech Boulevard, Palo Alto, California 94301 ("Licensor"), and Meridian
+Enterprises Ltd., a New York corporation with its principal place of business at 880 Fifth Avenue,
+New York, New York 10021 ("Licensee").
+
+
+ARTICLE 1 — DEFINITIONS
+
+1.1 "Software" means Licensor's proprietary enterprise analytics platform, Orion Analytics Suite
+(version 4.x), including all object code, documentation, updates, and related materials delivered
+to Licensee under this Agreement.
+
+1.2 "Affiliate License" means any license rights that may be extended to Affiliates of the Licensee
+as expressly permitted under Article 2 of this Agreement.
+
+1.3 "Affiliate" means any entity that directly or indirectly controls, is controlled by, or is under
+common control with a party, where "control" means ownership of more than fifty percent (50%) of the
+voting securities of such entity.
+
+1.4 "Documentation" means any user manuals, technical specifications, and other written materials
+provided by Licensor in connection with the Software.
+
+1.5 "Source Code" means the human-readable version of the Software, including all algorithms,
+routines, modules, and associated comments.
+
+1.6 "Derivative Works" means any modification, adaptation, enhancement, translation, or extension
+of the Software.
+
+
+ARTICLE 2 — LICENSE GRANT AND RESTRICTIONS
+
+2.1 License Grant to Licensee. Subject to the terms and conditions of this Agreement and payment
+of all applicable fees, Licensor hereby grants to Licensee a limited, non-exclusive, non-transferable
+license to: (a) install and use the Software solely for Licensee's internal business operations;
+(b) make one (1) copy of the Software solely for backup and archival purposes; and (c) use the
+Documentation in connection with Licensee's use of the Software.
+
+2.2 Affiliate License — Licensee. Licensee may extend its license rights under this Agreement to
+any of its Affiliates, provided that: (a) Licensee provides Licensor with written notice identifying
+each such Affiliate prior to such Affiliate's use of the Software; (b) each such Affiliate agrees
+in writing to be bound by all restrictions and obligations applicable to Licensee under this
+Agreement; and (c) Licensee remains liable for any breach of this Agreement by its Affiliates.
+The Affiliate License granted herein shall automatically terminate upon the Affiliate ceasing to
+qualify as an Affiliate of Licensee.
+
+2.3 Affiliate License — Licensor. Licensor may fulfill its obligations under this Agreement through
+any of its Affiliates, provided that Licensor remains primarily responsible for the performance of
+such obligations. The licensor's affiliates may provide technical support, training, and maintenance
+services on Licensor's behalf without separate consent from Licensee.
+
+2.4 Restrictions. Licensee shall not: (a) sublicense, sell, resell, transfer, or assign the Software
+to any third party; (b) copy or duplicate the Software except as expressly permitted; (c) reverse
+engineer, disassemble, decompile, or otherwise attempt to derive the Source Code of the Software;
+(d) remove or alter any proprietary notices on the Software; (e) use the Software to develop any
+competing product or service; or (f) use the Software for any unlawful purpose.
+
+2.5 Non-Transferable License. The license granted under this Agreement is strictly personal to
+Licensee and is non-transferable. Licensee may not sublicense or transfer the Software, or any
+rights therein, to any third party without Licensor's prior written consent. Any attempted transfer
+or sublicense in violation of this Section shall be void ab initio and shall constitute a material
+breach of this Agreement. Notwithstanding the foregoing, a license is non-transferable even in
+connection with a corporate reorganization, merger, or change of control, unless Licensor provides
+advance written consent.
+
+2.6 Right of First Refusal. In the event Licensor decides to sell, license, or otherwise transfer
+all or substantially all of its rights in the Software to any third party, Licensor shall first
+offer Licensee the right of first refusal to acquire such rights on the same material terms and
+conditions proposed by the third party. Licensee shall have thirty (30) days following receipt of
+Licensor's written notice to exercise this ROFR by delivering written notice of acceptance to
+Licensor. If Licensee does not exercise the right of first refusal within such period, Licensor
+may proceed with the transaction on terms no less favorable to the third party than those offered
+to Licensee.
+
+
+ARTICLE 3 — INTELLECTUAL PROPERTY
+
+3.1 Ownership. Licensor retains all right, title, and interest in and to the Software, including
+all Intellectual Property Rights therein. Nothing in this Agreement shall be construed as a sale
+or assignment of any such rights to Licensee. Licensee's rights in the Software are limited
+solely to the license expressly granted in this Agreement.
+
+3.2 Feedback. If Licensee provides Licensor with any suggestions, ideas, enhancement requests,
+feedback, or recommendations regarding the Software ("Feedback"), Licensor shall own all right,
+title, and interest in and to such Feedback, and Licensee hereby irrevocably assigns to Licensor
+all rights in such Feedback. Licensor may use, incorporate, and disclose Feedback without
+restriction or compensation to Licensee.
+
+3.3 Work Made for Hire. Any custom configurations, integrations, or enhancements developed by
+Licensor specifically for Licensee under a separate Statement of Work shall be considered works
+made for hire to the maximum extent permitted by applicable law; to the extent they do not qualify
+as works made for hire, Licensor hereby assigns all rights therein to Licensor's general software
+portfolio, and grants Licensee a limited license to use such works solely in connection with the
+Software.
+
+
+ARTICLE 4 — SOURCE CODE ESCROW
+
+4.1 Escrow Obligation. Within sixty (60) days of the Effective Date, Licensor shall deposit the
+Source Code of the Software, together with all build instructions and documentation necessary to
+compile and operate the Software, with Iron Mountain Intellectual Property Management, Inc. ("Escrow
+Agent") pursuant to a mutually agreed source code escrow agreement. Licensor shall update the
+Source Code deposit within thirty (30) days following each major release of the Software.
+
+4.2 Release Conditions. The Escrow Agent shall release the Source Code to Licensee only upon
+occurrence of any of the following release conditions: (a) Licensor files for bankruptcy, makes
+a general assignment for the benefit of creditors, or has a receiver appointed; (b) Licensor
+ceases to provide maintenance and support for the Software and fails to resume such support within
+sixty (60) days of written notice from Licensee; or (c) Licensor materially and persistently
+breaches its maintenance obligations under this Agreement and fails to cure such breach within
+ninety (90) days.
+
+4.3 License to Source Code. Upon release of the Source Code from escrow pursuant to Section 4.2,
+Licensee shall have a non-exclusive, royalty-free license to use, modify, and maintain the Source
+Code solely for Licensee's internal business operations and solely to the extent necessary to
+continue operating the Software in the absence of Licensor's support.
+
+4.4 Escrow Fees. The costs of the escrow arrangement, including initial setup and annual maintenance
+fees charged by the Escrow Agent, shall be shared equally between the parties.
+
+
+ARTICLE 5 — FEES AND PAYMENT
+
+5.1 License Fees. Licensee shall pay Licensor the annual license fees set forth in Schedule A.
+All fees are denominated in United States dollars and are non-refundable except as expressly
+provided in this Agreement.
+
+5.2 Payment Terms. All invoices are due and payable within forty-five (45) days of the invoice
+date. Invoices shall be issued annually in advance.
+
+5.3 Liquidated Damages for Late Payment. The parties acknowledge that determining the precise
+financial harm caused by Licensee's failure to make timely payments would be difficult to calculate.
+Accordingly, as a reasonable estimate of such harm and not as a penalty, Licensee shall pay
+Licensor liquidated damages equal to one and one-half percent (1.5%) per month on any amounts
+outstanding beyond the due date, provided that such amount shall not exceed the maximum rate
+permitted by applicable law. The parties agree that such liquidated damages represent a genuine
+pre-estimate of loss and are not a penalty. Licensee's liability for liquidated damages under this
+Section shall be Licensor's sole and exclusive remedy for late payment.
+
+5.4 Fee Escalation. License fees shall be subject to annual increases not to exceed five percent
+(5%) per year, with at least sixty (60) days' prior written notice.
+
+
+ARTICLE 6 — CONFIDENTIALITY
+
+6.1 Mutual Obligations. Each party agrees to maintain the other party's Confidential Information
+in strict confidence using at least the same degree of care it uses to protect its own confidential
+information, but in no event less than reasonable care. Neither party shall disclose the other
+party's Confidential Information to any third party without prior written consent.
+
+6.2 Exceptions. Confidentiality obligations do not apply to information that is independently
+developed, publicly known without breach, or required to be disclosed by applicable law.
+
+6.3 Injunctive Relief. The parties acknowledge that any breach of the confidentiality obligations
+herein would cause irreparable harm not adequately compensated by money damages, and that
+injunctive relief without bond or other security shall be an appropriate remedy.
+
+
+ARTICLE 7 — WARRANTIES AND WARRANTY DURATION
+
+7.1 Software Warranty. Licensor warrants that the Software will perform in material conformance
+with the Documentation for a period of twelve (12) months following the date of initial delivery
+("Warranty Period"). The warranty period shall not restart upon the delivery of any patches,
+updates, or new versions. This warranty applies only to unmodified versions of the Software
+operated in accordance with the Documentation.
+
+7.2 Warranty Remedies. During the Warranty Period, Licensor's sole obligation for a breach of the
+warranty in Section 7.1 is, at Licensor's election: (a) to use commercially reasonable efforts to
+repair or replace the non-conforming Software; or (b) if repair or replacement is not commercially
+feasible within sixty (60) days, to refund the portion of the license fees attributable to the
+non-conforming Software.
+
+7.3 Warranty Exclusions. The warranty in Section 7.1 shall not apply to: (a) defects caused by
+Licensee's negligence, misuse, or unauthorized modification; (b) issues arising from software or
+hardware not supplied by Licensor; or (c) any software that has not been maintained with all
+updates and patches recommended by Licensor.
+
+7.4 Disclaimer. EXCEPT AS EXPRESSLY SET FORTH IN SECTION 7.1, LICENSOR MAKES NO WARRANTIES,
+EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, INCLUDING ANY IMPLIED WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, TITLE, OR NON-INFRINGEMENT. LICENSOR DOES NOT WARRANT THAT
+THE SOFTWARE WILL BE ERROR-FREE, UNINTERRUPTED, OR FREE FROM SECURITY VULNERABILITIES.
+
+
+ARTICLE 8 — INDEMNIFICATION
+
+8.1 Licensor Indemnification. Licensor shall defend, indemnify, and hold harmless Licensee and
+its officers, directors, and employees from any third-party claim that the Software, as delivered
+by Licensor and used as permitted under this Agreement, infringes any copyright, patent, trademark,
+or trade secret of a third party. Licensor's indemnification obligation is conditioned on Licensee:
+(a) providing prompt written notice of the claim; (b) granting Licensor sole control of the defense;
+and (c) providing reasonable cooperation at Licensor's expense.
+
+8.2 Exclusions. Licensor shall have no obligation under Section 8.1 with respect to claims arising
+from: (a) Licensee's modification of the Software; (b) combination with third-party software;
+(c) use of the Software in a manner not authorized by this Agreement; or (d) Licensee's failure to
+implement updates provided by Licensor to avoid the infringement.
+
+8.3 Licensee Indemnification. Licensee shall indemnify and hold harmless Licensor from claims
+arising from Licensee's use of the Software in violation of applicable law or the terms of this
+Agreement, or from Licensee's gross negligence or willful misconduct.
+
+
+ARTICLE 9 — LIMITATION OF LIABILITY
+
+9.1 Consequential Damages Exclusion. IN NO EVENT SHALL EITHER PARTY BE LIABLE FOR ANY INDIRECT,
+INCIDENTAL, SPECIAL, CONSEQUENTIAL, EXEMPLARY, OR PUNITIVE DAMAGES, OR DAMAGES FOR LOSS OF
+PROFITS, REVENUE, DATA, GOODWILL, OR BUSINESS OPPORTUNITIES, EVEN IF SUCH PARTY HAS BEEN
+ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+
+9.2 Aggregate Cap on Liability. EACH PARTY'S AGGREGATE LIABILITY ARISING OUT OF OR RELATED TO
+THIS AGREEMENT, WHETHER IN CONTRACT, TORT, STRICT LIABILITY, OR OTHERWISE, SHALL NOT EXCEED
+THE TOTAL LICENSE FEES PAID BY LICENSEE TO LICENSOR IN THE TWELVE (12) MONTHS IMMEDIATELY
+PRECEDING THE EVENT GIVING RISE TO THE CLAIM. THIS LIMITATION SHALL APPLY NOTWITHSTANDING ANY
+FAILURE OF ESSENTIAL PURPOSE OF ANY LIMITED REMEDY.
+
+9.3 Exceptions. The limitations in Sections 9.1 and 9.2 shall not apply to: (a) a party's
+indemnification obligations under Article 8; (b) Licensee's breach of the license restrictions
+in Article 2; or (c) either party's breach of its confidentiality obligations under Article 6.
+
+
+ARTICLE 10 — TERM AND TERMINATION
+
+10.1 Term. This Agreement shall commence on the Effective Date and continue for an initial term of
+three (3) years. Upon expiration of the initial term and each renewal term, this Agreement shall
+automatically renew for successive one (1) year periods unless either party provides the other with
+written notice of non-renewal no later than ninety (90) days prior to the end of the then-current
+term.
+
+10.2 Termination for Cause. Either party may terminate this Agreement for material breach if the
+breaching party fails to cure such breach within thirty (30) days of written notice specifying the
+breach in reasonable detail.
+
+10.3 Termination for Convenience. Licensor may terminate this Agreement at any time for any reason
+or no reason upon ninety (90) days' prior written notice to Licensee.
+
+10.4 Post-Termination Services. Upon expiration or termination of this Agreement for any reason,
+Licensor shall, at Licensee's request and for a period not to exceed one hundred eighty (180) days
+following the effective date of termination ("Transition Period"), continue to make the Software
+available to Licensee and provide reasonable transition assistance, including data extraction,
+format conversion, and knowledge transfer services, solely to assist Licensee in transitioning to
+a replacement system. During the Transition Period, the terms and conditions of this Agreement
+shall remain in effect and Licensee shall continue to pay pro-rated license fees. Post-termination
+services shall not be construed as a renewal of this Agreement.
+
+10.5 Effect of Termination. Upon expiration of the Transition Period: (a) all license rights
+granted to Licensee shall immediately terminate; (b) Licensee shall promptly uninstall and destroy
+all copies of the Software in its possession; and (c) Licensee shall certify such deletion in
+writing within thirty (30) days.
+
+
+ARTICLE 11 — GOVERNING LAW AND DISPUTE RESOLUTION
+
+11.1 Governing Law. This Agreement shall be governed by and construed in accordance with the laws
+of the State of California, without regard to its conflict of laws principles.
+
+11.2 Mandatory Arbitration. ANY DISPUTE, CLAIM, OR CONTROVERSY ARISING OUT OF OR RELATING TO
+THIS AGREEMENT, OR THE BREACH, TERMINATION, ENFORCEMENT, INTERPRETATION, OR VALIDITY THEREOF
+("DISPUTE"), SHALL BE DETERMINED EXCLUSIVELY BY BINDING ARBITRATION ADMINISTERED BY THE AMERICAN
+ARBITRATION ASSOCIATION ("AAA") IN ACCORDANCE WITH ITS COMMERCIAL ARBITRATION RULES. The
+arbitration shall be conducted by a single arbitrator with relevant technical and legal expertise,
+selected by mutual agreement of the parties or, absent agreement, by the AAA. The seat of
+arbitration shall be San Francisco, California. The arbitrator's award shall be final and binding,
+and judgment upon the award rendered by the arbitrator may be entered in any court of competent
+jurisdiction. The parties expressly waive any right to trial by jury in any proceeding relating
+to this Agreement.
+
+11.3 Emergency Relief. Notwithstanding the arbitration obligation in Section 11.2, either party
+may seek emergency or interim injunctive relief from any court of competent jurisdiction to
+prevent irreparable harm pending the constitution of the arbitral tribunal.
+
+11.4 Confidentiality of Proceedings. The arbitration proceedings and any award shall be maintained
+in strict confidence by both parties, except as necessary to enforce an award or as required by law.
+
+
+ARTICLE 12 — GENERAL PROVISIONS
+
+12.1 Entire Agreement. This Agreement, together with all Schedules, constitutes the entire
+agreement between the parties with respect to its subject matter.
+
+12.2 Amendments. No amendment to this Agreement shall be effective unless in writing and signed
+by authorized representatives of both parties.
+
+12.3 Anti-Assignment. Neither party may assign this Agreement, or any rights or obligations
+hereunder, without the prior written consent of the other party. Notwithstanding the foregoing,
+either party may assign this Agreement without consent in connection with a merger or acquisition
+of all or substantially all of its assets, provided that the assignee assumes all obligations
+under this Agreement in writing.
+
+12.4 Notices. All notices shall be in writing and delivered by hand, overnight courier, or
+certified mail to the addresses set forth on the signature page.
+
+12.5 Waiver. No failure or delay in exercising any right shall constitute a waiver of such right.
+
+12.6 Severability. If any provision is held invalid or unenforceable, the remaining provisions
+shall continue in full force and effect.
+
+
+SCHEDULE A — LICENSE FEES
+
+Annual Platform License Fee:          $240,000
+Additional User Licenses (per seat):  $1,200/year
+Professional Services (hourly):       $250/hour
+Priority Support Tier:                $36,000/year additional
+
+All fees are subject to annual CPI adjustment not to exceed 5%.
+
+
+[SIGNATURE PAGE FOLLOWS]
+
+IN WITNESS WHEREOF, the parties have executed this Software License and Distribution Agreement
+as of the date first written above.
+
+ORION SOFTWARE GROUP INC.                  MERIDIAN ENTERPRISES LTD.
+
+By: _____________________________          By: _____________________________
+Name: Alexandra Park                        Name: Jonathan Hale
+Title: Chief Executive Officer              Title: Chief Procurement Officer
+Date: March 1, 2025                         Date: March 1, 2025
