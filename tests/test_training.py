@@ -186,15 +186,3 @@ def test_train_legal_bert_cuad_smoke():
         artifact_name="Legal-BERT (CUAD)",
     )
     assert artifacts.model_name == "Legal-BERT (CUAD)"
-
-
-def test_init_longformer_from_legal_bert_weight_shapes():
-    from training import init_longformer_from_legal_bert
-    # Uses distilbert-base-uncased as a stand-in to avoid downloading large models in tests
-    # Just verify the function runs and returns a model with correct output size
-    model = init_longformer_from_legal_bert(
-        num_labels=3,
-        legal_bert_name="distilbert-base-uncased",
-        longformer_name="allenai/longformer-base-4096",
-    )
-    assert model.config.num_labels == 3

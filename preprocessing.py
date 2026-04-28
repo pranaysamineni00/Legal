@@ -313,23 +313,6 @@ def compute_pos_weight(
 
 # ── Contract-level aggregation ────────────────────────────────────────────────
 
-def aggregate_contract_predictions(chunk_long_df: pd.DataFrame) -> pd.DataFrame:
-    """Max-probability rollup across chunks per (contract_title, clause_type).
-
-    Input DataFrame must have columns: contract_title, clause_type, score, chunk_index.
-    Returns DataFrame with columns: contract_title, clause_type, max_score, best_chunk_index.
-    """
-    agg = (
-        chunk_long_df
-        .sort_values("score", ascending=False)
-        .groupby(["contract_title", "clause_type"], sort=False)
-        .first()
-        .rename(columns={"score": "max_score", "chunk_index": "best_chunk_index"})
-        .reset_index()
-    )
-    return agg[["contract_title", "clause_type", "max_score", "best_chunk_index"]]
-
-
 def build_chunk_to_contract_map(chunk_examples: list[dict[str, Any]]) -> dict[int, str]:
     """Map chunk list index → contract_title for tracing predictions back to contracts."""
     return {i: ex["contract_title"] for i, ex in enumerate(chunk_examples)}

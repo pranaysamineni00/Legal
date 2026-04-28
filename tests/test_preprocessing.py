@@ -1,7 +1,7 @@
 import pytest
 import pandas as pd
 
-from preprocessing import filter_clauses, build_chunk_examples, build_contract_records, split_contract_records, compute_sample_weights, compute_pos_weight, aggregate_contract_predictions, build_chunk_to_contract_map
+from preprocessing import filter_clauses, build_chunk_examples, build_contract_records, split_contract_records, compute_sample_weights, compute_pos_weight, build_chunk_to_contract_map
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -117,17 +117,6 @@ def test_compute_pos_weight_shape_and_values():
     assert float(weights[0]) == pytest.approx(6.0)
     # label 1: (1 neg / 3 pos) × 2 = 2/3
     assert float(weights[1]) == pytest.approx(2.0 / 3.0, rel=1e-3)
-
-
-def test_aggregate_contract_predictions_takes_max():
-    chunk_df = pd.DataFrame([
-        {"contract_title": "C1", "clause_type": "Governing Law", "score": 0.3, "chunk_index": 0},
-        {"contract_title": "C1", "clause_type": "Governing Law", "score": 0.9, "chunk_index": 1},
-        {"contract_title": "C1", "clause_type": "Non-Compete",   "score": 0.2, "chunk_index": 0},
-    ])
-    result = aggregate_contract_predictions(chunk_df)
-    assert result.loc[result["clause_type"] == "Governing Law", "max_score"].iloc[0] == pytest.approx(0.9)
-    assert result.loc[result["clause_type"] == "Non-Compete",   "max_score"].iloc[0] == pytest.approx(0.2)
 
 
 def test_build_chunk_to_contract_map_maps_index_to_title():

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import copy
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
@@ -704,8 +704,10 @@ def train_longformer_ledgar_cuad(
     Unlike train_legalbert_longformer_cuad, this does NOT copy Legal-BERT weights with
     512→4096 position-embedding tiling. It domain-adapts Longformer's native position
     embeddings on LEDGAR, keeping all 4096 positions properly trained.
-    Both phases use local-only attention (no global_attention_mask), consistent with
-    train_longformer_cuad and the CUAD test evaluation in Section 4.
+    Both phases set global attention on the [CLS] token via
+    _add_global_attention_if_needed (consistent with train_longformer_cuad and the
+    CUAD test evaluation in Section 4) so the classification head can attend across
+    the full window.
     """
     from torch.utils.data import Dataset as TorchDataset, DataLoader as TorchDataLoader
 
