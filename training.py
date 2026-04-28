@@ -382,7 +382,7 @@ def train_bert_cuad(
     model_name: str,
     tokenizer: Any,
     id_to_clause: dict[int, str],
-    val_examples: list[dict] | None = None,
+    val_examples: list[dict],
     epochs: int = 3,
     batch_size: int = 8,
     learning_rate: float = 2e-5,
@@ -395,9 +395,19 @@ def train_bert_cuad(
 ) -> ModelArtifacts:
     """Fine-tune a BERT-family model directly on CUAD multi-label chunks.
 
-    The artifact_name parameter lets Legal-BERT reuse this function with a
-    different name (see train_legal_bert_cuad in Task 11).
+    val_examples is required: the training loop rolls chunk-level val logits
+    up to contract level for threshold tuning, and that aggregation needs the
+    chunk→contract mapping carried by val_examples. Passing an empty list
+    produces zero-row val arrays and meaningless metrics.
+
+    The artifact_name parameter lets Legal-BERT reuse this function under a
+    different artifact label (see train_legal_bert_cuad).
     """
+    if not val_examples:
+        raise ValueError(
+            "train_bert_cuad: val_examples must be a non-empty list of chunk "
+            "examples (e.g. splits['val_examples'])."
+        )
     device = device or choose_device()
 
     label2id = {v: k for k, v in id_to_clause.items()}
@@ -417,7 +427,7 @@ def train_bert_cuad(
                               num_workers=2, pin_memory=_pin, persistent_workers=True)
 
     model, history, best_t, metrics, val_logits, val_labels = _run_training_loop(
-        model, train_loader, val_loader, train_examples, val_examples or [], device,
+        model, train_loader, val_loader, train_examples, val_examples, device,
         epochs, learning_rate, weight_decay, warmup_ratio,
         max_train_batches, max_val_batches,
     )
@@ -444,7 +454,7 @@ def train_bert_ledgar_cuad(
     model_name: str,
     tokenizer: Any,
     id_to_clause: dict[int, str],
-    val_examples: list[dict] | None = None,
+    val_examples: list[dict],
     ledgar_epochs: int = 3,
     ledgar_max_batches: int | None = None,
     ledgar_batch_size: int = 32,
@@ -461,11 +471,20 @@ def train_bert_ledgar_cuad(
     Phase 2 strips the LEDGAR classification head, attaches a new multi-label head,
     and fine-tunes on CUAD using the shared _run_training_loop.
 
+    val_examples is required for the same reason as in train_bert_cuad — the
+    Phase-2 training loop tunes thresholds at contract level and needs the
+    chunk→contract mapping in val_examples to do so.
+
     ledgar_batch_size decouples Phase 1 from Phase 2: LEDGAR sequences are 512 tokens
     so a larger batch is safe even when CUAD batch_size is small for memory reasons.
     Matches train_longformer_ledgar_cuad so both LEDGAR-warmstarted variants see the
     same effective gradient steps per epoch on the warm-up corpus.
     """
+    if not val_examples:
+        raise ValueError(
+            "train_bert_ledgar_cuad: val_examples must be a non-empty list of "
+            "chunk examples (e.g. splits['val_examples'])."
+        )
     from torch.utils.data import Dataset as TorchDataset, DataLoader as TorchDataLoader
 
     device = device or choose_device()
@@ -565,7 +584,7 @@ def train_bert_ledgar_cuad(
                               num_workers=2, pin_memory=_pin, persistent_workers=True)
 
     model, history, best_t, metrics, val_logits, val_labels = _run_training_loop(
-        cuad_model, train_loader, val_loader, train_examples, val_examples or [], device,
+        cuad_model, train_loader, val_loader, train_examples, val_examples, device,
         epochs=cuad_epochs,
         learning_rate=learning_rate,
         weight_decay=0.01,
@@ -594,7 +613,7 @@ def train_legal_bert_cuad(
     train_examples: list[dict],
     tokenizer: Any,
     id_to_clause: dict[int, str],
-    val_examples: list[dict] | None = None,
+    val_examples: list[dict],
     model_name: str = "nlpaueb/legal-bert-base-uncased",
     epochs: int = 3,
     batch_size: int = 8,
@@ -620,7 +639,7 @@ def train_longformer_cuad(
     train_examples: list[dict],
     tokenizer: Any,
     id_to_clause: dict[int, str],
-    val_examples: list[dict] | None = None,
+    val_examples: list[dict],
     model_name: str = "allenai/longformer-base-4096",
     epochs: int = 3,
     batch_size: int = 4,
@@ -632,11 +651,19 @@ def train_longformer_cuad(
 ) -> ModelArtifacts:
     """Fine-tune Longformer-base-4096 on CUAD multi-label chunks.
 
+    val_examples is required for contract-level threshold tuning (see
+    train_bert_cuad).
+
     Default batch_size=4 × grad_accum_steps=4 → effective batch size 16, matching
     BERT-family models so the macro-F1 comparison is not confounded by gradient
     noise / step-count differences. Global attention on [CLS] is set automatically
     by _add_global_attention_if_needed inside the training loop and inference path.
     """
+    if not val_examples:
+        raise ValueError(
+            "train_longformer_cuad: val_examples must be a non-empty list of "
+            "chunk examples (e.g. splits['val_examples'])."
+        )
     device = device or choose_device()
     label2id = {v: k for k, v in id_to_clause.items()}
     model = AutoModelForSequenceClassification.from_pretrained(
@@ -661,7 +688,7 @@ def train_longformer_cuad(
                               num_workers=2, pin_memory=_pin, persistent_workers=True)
 
     model, history, best_t, metrics, val_logits, val_labels = _run_training_loop(
-        model, train_loader, val_loader, train_examples, val_examples or [], device,
+        model, train_loader, val_loader, train_examples, val_examples, device,
         epochs=epochs,
         learning_rate=learning_rate,
         weight_decay=0.01,
@@ -686,7 +713,7 @@ def train_longformer_ledgar_cuad(
     train_examples: list[dict],
     tokenizer: Any,
     id_to_clause: dict[int, str],
-    val_examples: list[dict] | None = None,
+    val_examples: list[dict],
     longformer_name: str = "allenai/longformer-base-4096",
     ledgar_epochs: int = 2,
     ledgar_max_batches: int | None = None,
@@ -701,14 +728,18 @@ def train_longformer_ledgar_cuad(
 ) -> ModelArtifacts:
     """Two-phase training: (1) fine-tune Longformer-base on LEDGAR, (2) transfer to CUAD.
 
-    Unlike train_legalbert_longformer_cuad, this does NOT copy Legal-BERT weights with
-    512→4096 position-embedding tiling. It domain-adapts Longformer's native position
-    embeddings on LEDGAR, keeping all 4096 positions properly trained.
-    Both phases set global attention on the [CLS] token via
-    _add_global_attention_if_needed (consistent with train_longformer_cuad and the
-    CUAD test evaluation in Section 4) so the classification head can attend across
-    the full window.
+    val_examples is required for contract-level threshold tuning in Phase 2
+    (see train_bert_cuad).
+
+    Domain-adapts Longformer's native 4096-position embeddings on LEDGAR rather than
+    tiling 512-position embeddings up. Both phases set global attention on the [CLS]
+    token via _add_global_attention_if_needed.
     """
+    if not val_examples:
+        raise ValueError(
+            "train_longformer_ledgar_cuad: val_examples must be a non-empty list "
+            "of chunk examples (e.g. splits['val_examples'])."
+        )
     from torch.utils.data import Dataset as TorchDataset, DataLoader as TorchDataLoader
 
     device = device or choose_device()
@@ -815,7 +846,7 @@ def train_longformer_ledgar_cuad(
                               num_workers=2, pin_memory=_pin, persistent_workers=True)
 
     model, history, best_t, metrics, val_logits, val_labels = _run_training_loop(
-        cuad_model, train_loader, val_loader, train_examples, val_examples or [], device,
+        cuad_model, train_loader, val_loader, train_examples, val_examples, device,
         epochs=cuad_epochs,
         learning_rate=learning_rate,
         weight_decay=0.01,

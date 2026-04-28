@@ -1,18 +1,18 @@
-"""Legal clause classifier — Legal-BERT (CUAD) fine-tuned model with keyword fallback."""
+"""Legal clause classifier — Legal-BERT (CUAD) fine-tuned model with party-aware,
+clause-aware LLM risk grading."""
 from __future__ import annotations
 
+import json
 import logging
 import os
-import re
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import numpy as np
 
 logger = logging.getLogger(__name__)
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Clause metadata
-# ─────────────────────────────────────────────────────────────────────────────
+# ── Clause metadata ──────────────────────────────────────────────────────────
 
 CUAD_CLAUSES: list[str] = sorted([
     "Affiliate License-Licensee", "Affiliate License-Licensor",
@@ -32,46 +32,233 @@ CUAD_CLAUSES: list[str] = sorted([
     "Warranty Duration",
 ])
 
-RISK_LEVELS: dict[str, str] = {
-    "Uncapped Liability":             "HIGH",
-    "Ip Ownership Assignment":        "HIGH",
-    "Non-Compete":                    "HIGH",
-    "Anti-Assignment":                "HIGH",
-    "Covenant Not To Sue":            "HIGH",
-    "Irrevocable Or Perpetual License": "HIGH",
-    "Cap On Liability":               "MEDIUM",
-    "Non-Disparagement":              "MEDIUM",
-    "No-Solicit Of Customers":        "MEDIUM",
-    "No-Solicit Of Employees":        "MEDIUM",
-    "Change Of Control":              "MEDIUM",
-    "Liquidated Damages":             "MEDIUM",
-    "Exclusivity":                    "MEDIUM",
-    "Revenue/Profit Sharing":         "MEDIUM",
-    "Post-Termination Services":      "MEDIUM",
-    "Termination For Convenience":    "MEDIUM",
-    "Affiliate License-Licensor":     "MEDIUM",
-    "Affiliate License-Licensee":     "MEDIUM",
-    "Joint Ip Ownership":             "MEDIUM",
-    "Most Favored Nation":            "MEDIUM",
-    "Third Party Beneficiary":        "MEDIUM",
-    "Non-Transferable License":       "MEDIUM",
-    "Minimum Commitment":             "MEDIUM",
-    "Volume Restriction":             "MEDIUM",
-    "Governing Law":                  "LOW",
-    "Agreement Date":                 "LOW",
-    "Effective Date":                 "LOW",
-    "Expiration Date":                "LOW",
-    "Parties":                        "LOW",
-    "Document Name":                  "LOW",
-    "Renewal Term":                   "LOW",
-    "Notice Period To Terminate Renewal": "LOW",
-    "Warranty Duration":              "LOW",
-    "Insurance":                      "LOW",
-    "License Grant":                  "LOW",
-    "Audit Rights":                   "LOW",
-    "Rofr/Rofo/Rofn":                 "LOW",
-    "Competitive Restriction Exception": "LOW",
+# ── Party roles ──────────────────────────────────────────────────────────────
+# Risk is graded for the named party only. `id` is what the API sends; `label`
+# is what the UI shows.
+
+PARTY_ROLES: list[dict[str, str]] = [
+    {"id": "licensor",         "label": "Licensor (granting IP / software rights)"},
+    {"id": "licensee",         "label": "Licensee (receiving IP / software rights)"},
+    {"id": "service_provider", "label": "Service provider / vendor"},
+    {"id": "customer",         "label": "Customer / client"},
+    {"id": "buyer",            "label": "Buyer / purchaser"},
+    {"id": "seller",           "label": "Seller / supplier"},
+    {"id": "employer",         "label": "Employer / company"},
+    {"id": "employee",         "label": "Employee / contractor"},
+    {"id": "disclosing_party", "label": "Disclosing party (sharing confidential info)"},
+    {"id": "receiving_party",  "label": "Receiving party (receiving confidential info)"},
+    {"id": "generic",          "label": "Generic / unspecified party"},
+]
+
+PARTY_ROLE_IDS: set[str] = {r["id"] for r in PARTY_ROLES}
+
+
+_PARTY_LABEL_BY_ID: dict[str, str] = {r["id"]: r["label"] for r in PARTY_ROLES}
+
+
+def _party_label(role_id: str) -> str:
+    return _PARTY_LABEL_BY_ID[role_id]
+
+
+# ── Per-clause risk rubric ───────────────────────────────────────────────────
+# Each entry tells the LLM grader: definition, factual features that move risk
+# up/down, and how to map those features to HIGH/MEDIUM/LOW for the named party.
+# The grader must apply this rubric verbatim — it cannot invent its own scale.
+
+CLAUSE_RUBRICS: dict[str, dict[str, str]] = {
+    "Affiliate License-Licensee": {
+        "definition": "Extends the license to the licensee's affiliates (parent, subsidiaries, sister companies).",
+        "factors": "Whether the named party is the licensor or licensee; breadth of affiliate definition; whether affiliates can sublicense further; revenue dilution if licensor.",
+        "guidance": "If party is LICENSOR: HIGH when affiliate scope is open-ended (any entity under common control, future affiliates auto-included); MEDIUM when limited to existing majority-owned affiliates; LOW when narrow and revocable on divestiture. If party is LICENSEE: usually LOW (it is a benefit). For other parties: LOW unless they bear an indemnity for affiliate use.",
+    },
+    "Affiliate License-Licensor": {
+        "definition": "Lets the licensor grant the licensed rights through its own affiliates, or have affiliates fulfill obligations.",
+        "factors": "Which party the named party is; whether affiliates are jointly liable; assignment of affiliate-created IP back to licensor.",
+        "guidance": "If party is LICENSEE: HIGH when affiliates can perform without licensor remaining responsible (no privity, no recourse); MEDIUM when licensor is jointly liable; LOW when affiliates are bound by the same terms with licensor on the hook. If party is LICENSOR: usually LOW. Generic: MEDIUM.",
+    },
+    "Agreement Date": {
+        "definition": "The date the agreement is signed or dated.",
+        "factors": "Pure metadata; never a substantive risk.",
+        "guidance": "LOW for every party. Only flag MEDIUM if the date is materially inconsistent with the effective date in a way that creates retroactive obligations.",
+    },
+    "Anti-Assignment": {
+        "definition": "Prohibits transferring the agreement (or rights/obligations under it) without consent.",
+        "factors": "Which party is restricted; whether change-of-control is treated as assignment; whether consent must be reasonable; carve-outs for affiliate transfers.",
+        "guidance": "HIGH for the named party when the restriction is one-sided against them, change-of-control triggers it, and consent may be withheld for any reason — this can block M&A. MEDIUM when mutual or consent must not be unreasonably withheld. LOW when the named party is the one whose consent is required, or carve-outs cover ordinary corporate restructuring.",
+    },
+    "Audit Rights": {
+        "definition": "Right to inspect the counterparty's books and records.",
+        "factors": "Which party holds the right vs. is subject to audit; frequency limits; cost-shifting on findings; scope (financial only vs. operational/security).",
+        "guidance": "If party HOLDS the audit right: LOW. If party is SUBJECT to audit: HIGH when frequency is unlimited, scope is broad, and party pays regardless of findings; MEDIUM when capped to ~1x/year with reasonable notice; LOW when narrowly scoped and capped.",
+    },
+    "Cap On Liability": {
+        "definition": "Caps each party's monetary liability under the contract.",
+        "factors": "Cap amount relative to fees paid (multiple of annual fees, fixed dollar, etc.); mutuality; which damages are capped; carve-outs that escape the cap (IP, indemnity, confidentiality, gross negligence).",
+        "guidance": "From the named party's perspective as a *plaintiff seeking recovery*: HIGH when cap is below 1x annual fees or one-sided against the named party (counterparty's exposure is limited but party's is not). MEDIUM when mutual at ~1x annual fees with standard carve-outs. LOW when generous (>2x) and mutual, or when the named party is the one the cap protects.",
+    },
+    "Change Of Control": {
+        "definition": "Defines what happens on M&A or transfer of controlling interest (often termination, consent, or accelerated obligations).",
+        "factors": "Which party's CoC is the trigger; consequences (termination right, payment acceleration, license revocation); whether competitor-acquirer carve-outs exist.",
+        "guidance": "HIGH for the named party when their own CoC gives the counterparty an unconditional termination/revocation right with no transition period — this depresses M&A value. MEDIUM when CoC requires consent that cannot be unreasonably withheld. LOW when CoC has no automatic consequence or affects the counterparty only.",
+    },
+    "Competitive Restriction Exception": {
+        "definition": "A carve-out from a non-compete or exclusivity obligation, permitting otherwise-restricted activity.",
+        "factors": "Whether the carve-out benefits the named party or the counterparty; specificity of the carve-out.",
+        "guidance": "Usually LOW or beneficial — it is a relief valve from a restriction. Bump to MEDIUM only if the carve-out is so broad that it neutralizes the named party's exclusivity (i.e., the named party paid for exclusivity and the exception destroys it).",
+    },
+    "Covenant Not To Sue": {
+        "definition": "Promise by one party not to bring suit against another for specified claims.",
+        "factors": "Which party is waiving the right to sue; scope of claims waived; whether the waiver covers future as well as past conduct; whether it survives termination.",
+        "guidance": "HIGH for the party waiving (they are giving up legal recourse). LOW for the party benefiting. If mutual: MEDIUM. If the waiver covers gross negligence, willful misconduct, or IP infringement: HIGH regardless of mutuality.",
+    },
+    "Document Name": {
+        "definition": "The title or naming of the agreement.",
+        "factors": "Pure metadata.",
+        "guidance": "LOW for every party.",
+    },
+    "Effective Date": {
+        "definition": "The date the agreement's obligations begin.",
+        "factors": "Whether the effective date is retroactive (creating obligations before signing); gap between signing and effectiveness.",
+        "guidance": "LOW unless the effective date is materially retroactive and imposes obligations on the named party for periods predating signature — then MEDIUM.",
+    },
+    "Exclusivity": {
+        "definition": "Restricts a party from engaging with competitors or alternative providers.",
+        "factors": "Which party is restricted; geographic, product, and field-of-use scope; duration; carve-outs.",
+        "guidance": "HIGH for the named party when they are the *restricted* party with broad scope (worldwide, all products, full term, no minimums in exchange). MEDIUM when scope is narrow (specific product line or region) or accompanied by minimum-purchase commitments from the counterparty. LOW when the named party is the *beneficiary* of the exclusivity.",
+    },
+    "Expiration Date": {
+        "definition": "The date the agreement's term ends absent renewal.",
+        "factors": "Term length; whether the date is fixed or formula-based.",
+        "guidance": "LOW for every party. Only relevant in conjunction with renewal/termination provisions.",
+    },
+    "Governing Law": {
+        "definition": "The jurisdiction whose law governs the contract.",
+        "factors": "Whether the chosen jurisdiction is the named party's home jurisdiction or the counterparty's; whether forum selection is exclusive; arbitration vs. court.",
+        "guidance": "LOW when the named party's home jurisdiction governs. MEDIUM when a neutral or industry-standard jurisdiction (e.g., New York, Delaware, English law) governs and the party has no home advantage. HIGH only when the chosen jurisdiction is materially unfavorable (counterparty's home, hostile to the party's industry, or imposes unusual procedural burdens).",
+    },
+    "Ip Ownership Assignment": {
+        "definition": "Assigns ownership of intellectual property created under the contract.",
+        "factors": "Who is the assignor (giving up IP) vs. assignee (receiving IP); what IP is assigned (work product only, or broader pre-existing IP and improvements); whether a license-back is granted to the assignor.",
+        "guidance": "HIGH for the *assignor* — they are surrendering IP rights, often irrevocably. Especially HIGH if the scope sweeps in pre-existing IP, derivatives, or improvements without a license-back. LOW for the *assignee* (they receive the rights). MEDIUM if mutual cross-assignment or if a broad license-back leaves the assignor functionally able to continue using the IP.",
+    },
+    "Insurance": {
+        "definition": "Required insurance coverage one party must maintain.",
+        "factors": "Which party must carry insurance; coverage amounts; types (general liability, professional liability, cyber, workers' comp); whether the counterparty must be named as additional insured.",
+        "guidance": "If the named party is REQUIRED to carry insurance: MEDIUM when amounts are within market norms for their industry; HIGH when amounts are atypically high or coverage types are difficult to obtain; LOW when modest. If the counterparty must carry: LOW for the named party.",
+    },
+    "Irrevocable Or Perpetual License": {
+        "definition": "License that cannot be revoked (irrevocable) and/or runs forever (perpetual).",
+        "factors": "Which party is licensor vs. licensee; scope of the perpetual/irrevocable grant; whether it survives termination for cause.",
+        "guidance": "HIGH for the LICENSOR — they have permanently surrendered the right to claw back the license, even on the licensee's material breach. LOW for the LICENSEE (they have permanent rights). For non-IP parties: MEDIUM only if the license affects them.",
+    },
+    "Joint Ip Ownership": {
+        "definition": "IP created jointly is co-owned by both parties.",
+        "factors": "Whether each owner can exploit independently without accounting; whether either can license to third parties; jurisdictional default rules (US vs. EU treat joint ownership very differently).",
+        "guidance": "MEDIUM for both parties by default — joint ownership creates ongoing coordination friction and can dilute commercial exclusivity. HIGH for the named party if the agreement is silent on independent exploitation rights and they operate in a jurisdiction where joint owners need consent to license (e.g., UK, Germany). LOW only when the agreement explicitly grants each owner full independent rights.",
+    },
+    "License Grant": {
+        "definition": "The core grant of a license to use IP, software, or other rights.",
+        "factors": "Scope (exclusive vs. non-exclusive); territory; field of use; permitted users; sublicense rights; revocability.",
+        "guidance": "Risk depends on which side: for the LICENSEE, LOW when scope is broad and irrevocable, HIGH when narrowly defined with revocation triggers. For the LICENSOR, MEDIUM when granting exclusivity (even within a narrow field) since it forecloses other deals; LOW for non-exclusive grants. For non-IP parties: LOW unless they bear an indemnity.",
+    },
+    "Liquidated Damages": {
+        "definition": "Pre-agreed monetary damages payable on specified breach.",
+        "factors": "Which party owes the LD; amount relative to actual likely harm; whether it is the exclusive remedy or in addition to other remedies; whether it is structured as a penalty (often unenforceable).",
+        "guidance": "HIGH for the named party if they are the one OWING liquidated damages and the amount is large relative to the contract value, or it is in addition to other remedies. MEDIUM when the LD is the exclusive remedy and amounts are proportionate to anticipated harm. LOW when the named party is the one ENTITLED to receive liquidated damages.",
+    },
+    "Minimum Commitment": {
+        "definition": "Floor on purchase volume, spend, or activity that one party must meet.",
+        "factors": "Which party owes the minimum; size relative to expected volumes; consequences of shortfall (true-up payment, termination right for counterparty, etc.); ramp / cure provisions.",
+        "guidance": "HIGH for the OBLIGATED party when the floor is aggressive relative to forecast and shortfall triggers a true-up payment for the gap. MEDIUM when the floor is modest or the consequence is loss of exclusivity rather than out-of-pocket. LOW for the BENEFICIARY of the commitment.",
+    },
+    "Most Favored Nation": {
+        "definition": "Promise that one party will not give other counterparties better terms.",
+        "factors": "Which party owes the MFN; scope (all terms, just price, etc.); audit / enforcement mechanism; whether retroactive.",
+        "guidance": "HIGH for the OBLIGATED party — MFNs constrain commercial flexibility, complicate every future deal, and are notoriously hard to manage. MEDIUM if narrowly scoped to price only and prospective. LOW for the BENEFICIARY.",
+    },
+    "No-Solicit Of Customers": {
+        "definition": "Restriction on soliciting the counterparty's customers.",
+        "factors": "Which party is restricted; duration; scope of customers covered (all vs. those introduced through the agreement); geographic scope.",
+        "guidance": "HIGH for the RESTRICTED party when scope is broad, duration is long (>2 years post-termination), and 'customers' includes any party whose existence the restricted party learned of through the agreement. MEDIUM when limited to customers actually introduced through the deal and ≤1-year tail. LOW for the BENEFICIARY.",
+    },
+    "No-Solicit Of Employees": {
+        "definition": "Restriction on hiring the counterparty's employees.",
+        "factors": "Which party is restricted; duration; whether it covers solicitation only or any hiring (no-hire); carve-outs for general advertising or for employees who approach unsolicited.",
+        "guidance": "HIGH for the RESTRICTED party when it is a no-hire (not just no-solicit), covers all employees not just those involved in the deal, and runs >2 years. MEDIUM for standard 1-year no-solicit with carve-outs. LOW for the BENEFICIARY.",
+    },
+    "Non-Compete": {
+        "definition": "Restriction on engaging in competitive business or activity.",
+        "factors": "Which party is restricted; activity scope; geographic scope; duration during and after the term; whether enforceable in the governing jurisdiction.",
+        "guidance": "HIGH for the RESTRICTED party when scope covers their core business, is worldwide or industry-wide, and persists post-termination >1 year. MEDIUM when narrowly tailored (specific product line in specific region, ≤1 year tail) and supported by consideration. LOW for the BENEFICIARY.",
+    },
+    "Non-Disparagement": {
+        "definition": "Restriction on making negative public statements about the counterparty.",
+        "factors": "Which party is restricted; mutuality; carve-outs for truthful statements / regulatory disclosures / responses to subpoena; duration.",
+        "guidance": "MEDIUM for the RESTRICTED party — these are common but constrain candor. HIGH if one-sided AND lacks carve-outs for truthful or legally compelled statements (a real free-speech / whistleblower risk). LOW for the BENEFICIARY or when fully mutual with standard carve-outs.",
+    },
+    "Non-Transferable License": {
+        "definition": "License that cannot be transferred or sublicensed.",
+        "factors": "Which party is the licensee; whether change-of-control is deemed a transfer; affiliate carve-outs.",
+        "guidance": "HIGH for the LICENSEE when CoC is deemed a transfer (license dies on M&A). MEDIUM when CoC is not specifically addressed. LOW for the LICENSOR (it is a protective term for them) or when affiliate transfers are allowed.",
+    },
+    "Notice Period To Terminate Renewal": {
+        "definition": "Required notice to opt out of automatic renewal.",
+        "factors": "Length of notice required; whether failing to give notice locks in another full term; whether reminders are required.",
+        "guidance": "MEDIUM for either party when notice is long (>90 days) and no reminder is required — easy to miss and lock into another term. LOW when ≤30 days and routine. HIGH only when missing notice locks in a multi-year term with no out.",
+    },
+    "Parties": {
+        "definition": "Identification of the contracting parties.",
+        "factors": "Pure metadata; risk only if the named legal entity is materially different from the operating entity (e.g., a thinly capitalized subsidiary).",
+        "guidance": "LOW unless the counterparty is a shell or judgment-proof entity, in which case MEDIUM.",
+    },
+    "Post-Termination Services": {
+        "definition": "Obligations to provide transition or wind-down services after termination.",
+        "factors": "Which party owes the services; duration; payment terms during transition; data return / migration obligations.",
+        "guidance": "HIGH for the OBLIGATED party when services must continue for >6 months post-termination at pre-termination pricing with no opt-out. MEDIUM when 90 days at uplift pricing is allowed. LOW for the BENEFICIARY (they receive a soft landing).",
+    },
+    "Rofr/Rofo/Rofn": {
+        "definition": "Right of first refusal / first offer / first negotiation on future opportunities.",
+        "factors": "Which party holds the right; scope of opportunities covered; duration; matching mechanics.",
+        "guidance": "HIGH for the GRANTOR — these rights chill third-party deal-making for the encumbered asset. MEDIUM if narrowly scoped or short-duration. LOW for the HOLDER of the right.",
+    },
+    "Renewal Term": {
+        "definition": "Defines whether and how the term renews.",
+        "factors": "Auto-renew vs. opt-in; renewal length; price-escalation mechanics on renewal.",
+        "guidance": "MEDIUM if auto-renew with no notice reminder and price-escalation cap is absent or weak — silent renewal is a classic trap. LOW for opt-in renewals or short auto-renew terms with capped escalation.",
+    },
+    "Revenue/Profit Sharing": {
+        "definition": "One party's compensation tied to revenue, profit, or sales.",
+        "factors": "Which party pays vs. receives; calculation base (gross/net); deductions allowed; audit rights; whether the rate steps down on milestones.",
+        "guidance": "HIGH for the PAYER when the calculation base is broad (gross revenue with few deductions) and the rate is high. MEDIUM at typical industry rates on net revenue with standard deductions. LOW for the RECIPIENT.",
+    },
+    "Termination For Convenience": {
+        "definition": "Right to terminate without cause on notice.",
+        "factors": "Which party can terminate; notice period; whether unilateral or mutual; payment / wind-down obligations on termination.",
+        "guidance": "HIGH for the named party when ONLY the counterparty has the right (asymmetric) and notice is short — investment in the relationship is at risk. MEDIUM when mutual with reasonable notice (≥60 days). LOW when only the named party holds the right.",
+    },
+    "Third Party Beneficiary": {
+        "definition": "Whether non-parties can enforce the contract.",
+        "factors": "Which third parties are named as beneficiaries; what rights they have; whether the named party has consented.",
+        "guidance": "MEDIUM by default when third parties have enforcement rights — it expands the named party's exposure beyond the counterparty. HIGH when the third party is a competitor or regulator with broad enforcement standing. LOW when the agreement explicitly disclaims third-party beneficiaries.",
+    },
+    "Uncapped Liability": {
+        "definition": "Liability that has no monetary cap, or carve-outs from a cap that effectively make exposure unlimited.",
+        "factors": "Which party bears the uncapped exposure; scope of carve-outs (IP indemnity, confidentiality, gross negligence, fraud); mutuality.",
+        "guidance": "HIGH for the party bearing uncapped exposure on broad categories (IP indemnity, data breach, confidentiality). MEDIUM if uncapped exposure is mutual or limited to narrow categories the named party fully controls (e.g., own gross negligence and willful misconduct only). LOW if the named party is the BENEFICIARY of unlimited recourse against the counterparty.",
+    },
+    "Volume Restriction": {
+        "definition": "Cap on volume / quantity / activity.",
+        "factors": "Which party is restricted; the cap level relative to expected demand; consequences of exceeding (overage fees, breach, termination right).",
+        "guidance": "HIGH for the RESTRICTED party when the cap is below realistic forecast and overages are penalized as breach. MEDIUM when cap is reasonable and overages trigger only additional fees. LOW for the BENEFICIARY.",
+    },
+    "Warranty Duration": {
+        "definition": "How long warranties remain in effect.",
+        "factors": "Which party gives the warranty; length; whether it survives termination or acceptance.",
+        "guidance": "If named party is the WARRANTOR: HIGH when warranties run >18 months post-acceptance or have no temporal limit. MEDIUM at standard 12 months. LOW for short (90-day) limited warranties. If named party is the BENEFICIARY: inverse — long warranties are LOW, short ones MEDIUM.",
+    },
 }
+
+VALID_RISK_TIERS: tuple[str, ...] = ("HIGH", "MEDIUM", "LOW")
 
 CATEGORIES: dict[str, list[str]] = {
     "Contract Basics":       ["Document Name", "Parties", "Agreement Date", "Effective Date", "Expiration Date"],
@@ -93,422 +280,143 @@ def _get_category(clause: str) -> str:
     return "General"
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Keyword patterns for heuristic mode
-# ─────────────────────────────────────────────────────────────────────────────
 
-_KW: dict[str, list[str]] = {
-    "Affiliate License-Licensee": [
-        r"affiliates?\s+of\s+(?:the\s+)?licensee",
-        r"licensee(?:'s)?\s+affiliates?",
-        r"sublicens\w+\s+to\s+(?:its\s+)?affiliates?",
-    ],
-    "Affiliate License-Licensor": [
-        r"affiliates?\s+of\s+(?:the\s+)?licensor",
-        r"licensor(?:'s)?\s+affiliates?",
-        r"licensor\s+may\s+grant\s+.{0,30}affiliate",
-    ],
-    "Agreement Date": [
-        r"dated\s+(?:as\s+)?of",
-        r"this\s+agreement\s+.{0,20}dated",
-        r"entered\s+into\s+as\s+of",
-        r"effective(?:ly)?\s+dated",
-        r"as\s+of\s+the\s+\d+(?:st|nd|rd|th)?\s+day\s+of",
-    ],
-    "Anti-Assignment": [
-        r"may\s+not\s+assign",
-        r"shall\s+not\s+assign",
-        r"assignment\s+.{0,60}prior\s+written\s+consent",
-        r"no\s+assignment\s+without",
-        r"not\s+transfer\s+.{0,20}(?:this\s+)?agreement\s+without",
-        r"without\s+.{0,20}prior\s+.{0,10}written\s+consent\s+.{0,20}assign",
-    ],
-    "Audit Rights": [
-        r"right\s+to\s+audit",
-        r"audit\s+rights?",
-        r"examine\s+.{0,30}books\s+and\s+records",
-        r"inspect\s+.{0,20}(?:books|records)",
-        r"books\s+.{0,20}records\s+.{0,30}inspect",
-        r"audit\s+.{0,30}books\s+and\s+records",
-    ],
-    "Cap On Liability": [
-        r"in\s+no\s+event\s+.{0,80}(?:shall|will)\s+.{0,40}(?:be\s+)?liable",
-        r"limitation\s+of\s+liability",
-        r"aggregate\s+liability\s+.{0,60}shall\s+not\s+exceed",
-        r"total\s+liability\s+.{0,40}limited\s+to",
-        r"maximum\s+(?:aggregate\s+)?liability",
-        r"liability\s+.{0,20}capped\s+at",
-        r"limit(?:s|ed|ing)?\s+(?:its\s+)?liability\s+to",
-    ],
-    "Change Of Control": [
-        r"change\s+of\s+control",
-        r"change-of-control",
-        r"merger\s+or\s+acquisition",
-        r"sale\s+of\s+all\s+or\s+substantially\s+all",
-        r"acquisition\s+of\s+.{0,30}controlling\s+interest",
-        r"undergo\s+a\s+change\s+of\s+control",
-    ],
-    "Competitive Restriction Exception": [
-        r"notwithstanding\s+.{0,60}(?:non-?compet|exclusiv|restrict)",
-        r"except(?:ion)?\s+.{0,40}(?:compet|exclusiv|restrict)\s+.{0,30}(?:clause|provision|obligation)",
-        r"shall\s+not\s+apply\s+.{0,40}(?:compet|exclusiv)",
-        r"carve.?out\s+.{0,30}(?:compet|exclusiv|restrict)",
-        r"permitted\s+.{0,20}(?:compet|exclusiv|activit)",
-        r"exception\s+to\s+.{0,30}(?:non-?compet|exclusiv)",
-    ],
-    "Covenant Not To Sue": [
-        r"covenant\s+not\s+to\s+sue",
-        r"agrees?\s+not\s+to\s+.{0,30}(?:bring|file|initiate|commence)\s+.{0,20}(?:suit|action|claim|proceeding)",
-        r"waives?\s+.{0,20}right\s+to\s+(?:bring\s+)?(?:a\s+)?(?:legal\s+)?(?:action|suit|claim)",
-        r"releases?\s+and\s+covenant\s+not\s+to\s+sue",
-    ],
-    "Document Name": [
-        r"this\s+(?:master\s+)?(?:software\s+|service\s+|professional\s+services?\s+|license\s+|licensing\s+|subscription\s+|co-branding\s+|development\s+|supply\s+)?agreement",
-        r"master\s+services?\s+agreement",
-        r"software\s+license\s+agreement",
-        r"professional\s+services\s+agreement",
-        r"end\s+user\s+license\s+agreement",
-        r"\bEULA\b",
-        r"\bMSA\b\s+.{0,10}(?:means|is|refers)",
-    ],
-    "Effective Date": [
-        r"effective\s+date",
-        r"shall\s+(?:become\s+)?(?:effective|take\s+effect)",
-        r"commences?\s+on",
-        r"takes?\s+effect\s+(?:as\s+of|on)",
-    ],
-    "Exclusivity": [
-        r"exclusive(?:ly)?\s+.{0,30}(?:provider|vendor|supplier|partner|distributor|reseller)",
-        r"sole\s+and\s+exclusive",
-        r"shall\s+not\s+(?:sell|provide|offer|license)\s+.{0,50}(?:to\s+any\s+other|competing\s+)",
-        r"exclusive\s+(?:basis|right|arrangement|relationship)",
-        r"exclusivity\s+period",
-    ],
-    "Expiration Date": [
-        r"expir(?:es?|ation)\s+(?:date|on)",
-        r"shall\s+expire",
-        r"term\s+shall\s+end",
-        r"(?:contract|agreement|term)\s+.{0,20}expires?\s+on",
-        r"initial\s+term\s+.{0,20}ends?\s+on",
-    ],
-    "Governing Law": [
-        r"governing\s+law",
-        r"governed\s+by\s+(?:the\s+)?laws",
-        r"laws\s+of\s+the\s+state\s+of",
-        r"laws\s+of\s+\w+(?:\s+\w+)?\s+shall\s+govern",
-        r"subject\s+to\s+the\s+laws\s+of",
-        r"construed\s+in\s+accordance\s+with\s+the\s+laws",
-        r"choice\s+of\s+law",
-    ],
-    "Ip Ownership Assignment": [
-        r"assigns?\s+.{0,30}(?:all\s+)?(?:right|title|interest)\s+.{0,30}intellectual\s+property",
-        r"work\s+made\s+for\s+hire",
-        r"intellectual\s+property\s+.{0,30}(?:shall\s+)?(?:vest\s+in|belong\s+to|owned\s+by)",
-        r"all\s+inventions?\s+.{0,30}assigns?",
-        r"hereby\s+assigns?\s+to",
-        r"assignment\s+of\s+intellectual\s+property",
-        r"ip\s+ownership\s+.{0,20}(?:assign|transfer|vest)",
-    ],
-    "Insurance": [
-        r"(?:maintain|carry|obtain|procure)\s+.{0,30}insurance",
-        r"general\s+liability\s+insurance",
-        r"certificate\s+of\s+insurance",
-        r"professional\s+liability\s+(?:insurance)?",
-        r"errors\s+and\s+omissions",
-        r"commercial\s+general\s+liability",
-        r"workers'\s+compensation\s+insurance",
-    ],
-    "Irrevocable Or Perpetual License": [
-        r"irrevocable\s+(?:and\s+)?(?:perpetual\s+)?license",
-        r"perpetual\s+(?:and\s+)?(?:irrevocable\s+)?license",
-        r"perpetual\s+license",
-        r"license\s+.{0,20}irrevocable",
-    ],
-    "Joint Ip Ownership": [
-        r"jointly\s+own",
-        r"joint\s+ownership\s+of\s+.{0,30}intellectual\s+property",
-        r"co-?own\w*",
-        r"jointly\s+developed\s+.{0,30}intellectual\s+property",
-        r"jointly\s+created\s+work",
-        r"joint\s+inventors?",
-    ],
-    "License Grant": [
-        r"hereby\s+grants?\s+.{0,60}license",
-        r"grants?\s+to\s+.{0,40}a\s+(?:non-?exclusive|exclusive)\s+(?:license|right)",
-        r"right\s+to\s+use\s+.{0,30}software",
-        r"license\s+to\s+(?:access|use|copy|reproduce)",
-        r"grant(?:s|ed)?\s+a\s+(?:limited\s+)?license",
-    ],
-    "Liquidated Damages": [
-        r"liquidated\s+damages",
-        r"agreed\s+(?:upon\s+)?damages",
-        r"stipulated\s+damages",
-        r"pre-?agreed\s+(?:monetary\s+)?damages",
-        r"ascertaining\s+actual\s+damages",
-    ],
-    "Minimum Commitment": [
-        r"minimum\s+(?:purchase|order|commitment|spend|volume|quantity)",
-        r"commit(?:s|ted|ment)\s+to\s+purchase\s+.{0,30}minimum",
-        r"minimum\s+annual\s+(?:revenue|payment|spend|purchase)",
-        r"at\s+least\s+.{0,20}(?:per\s+(?:year|month|quarter)|annually)",
-        r"minimum\s+guaranteed\s+(?:revenue|amount|payment)",
-    ],
-    "Most Favored Nation": [
-        r"most.?favou?red\s+nation",
-        r"\bMFN\b",
-        r"no\s+less\s+favou?rable\s+terms\s+than",
-        r"best\s+(?:available\s+)?price\s+.{0,40}any\s+other\s+customer",
-        r"most\s+favorable\s+terms",
-    ],
-    "Volume Restriction": [
-        r"volume\s+(?:restriction|cap|limit|ceiling)",
-        r"maximum\s+(?:volume|quantity|units?|orders?)\s+.{0,30}(?:per|during|in\s+any)",
-        r"not\s+(?:to\s+)?exceed\s+.{0,30}(?:units?|volume|quantity)",
-        r"limit\w*\s+(?:the\s+)?(?:total\s+)?(?:volume|quantity|number\s+of\s+units?)",
-        r"annual\s+(?:cap|limit)\s+.{0,20}(?:units?|volume|quantity)",
-    ],
-    "No-Solicit Of Customers": [
-        r"not\s+(?:to\s+)?solicit\s+.{0,30}(?:customers?|clients?|accounts?)",
-        r"no-?solicit\s+.{0,20}customer",
-        r"solicit\s+.{0,20}customer\s+.{0,20}(?:prohibited|restrict)",
-        r"refrain\s+from\s+solicit\w+\s+.{0,20}customer",
-    ],
-    "No-Solicit Of Employees": [
-        r"not\s+(?:to\s+)?solicit\s+.{0,30}(?:employees?|personnel|staff|workforce)",
-        r"non-?solicit\s+.{0,20}employee",
-        r"solicit\s+.{0,20}employee\s+.{0,20}(?:prohibited|restrict)",
-        r"\bno-?hire\b",
-        r"refrain\s+from\s+(?:hiring|solicit\w+)\s+.{0,20}employee",
-    ],
-    "Non-Compete": [
-        r"non-?compet\w+",
-        r"not\s+(?:to\s+)?compet\w+\s+with",
-        r"competitive\s+(?:activity|business|products?|services?)",
-        r"competing\s+(?:products?|services?|business|enterprise)",
-        r"shall\s+not\s+engage\s+in\s+.{0,40}(?:business|activity)\s+.{0,30}compet",
-        r"competitive\s+enterprise",
-    ],
-    "Non-Disparagement": [
-        r"non-?disparagement",
-        r"not\s+(?:to\s+)?disparage",
-        r"disparaging\s+(?:remarks?|statements?|comments?|language)",
-        r"defamatory\s+(?:statements?|remarks?)",
-        r"negative\s+public\s+statements?",
-    ],
-    "Non-Transferable License": [
-        r"non-?transferable",
-        r"not\s+(?:to\s+)?transfer\s+.{0,20}license",
-        r"may\s+not\s+(?:sublicense|transfer|assign)",
-        r"not\s+sublicens\w+",
-        r"license\s+is\s+.{0,10}non-?transferable",
-    ],
-    "Notice Period To Terminate Renewal": [
-        r"notice\s+.{0,40}non-?renewal",
-        r"written\s+notice\s+.{0,30}prior\s+to\s+.{0,20}renewal",
-        r"notice\s+period\s+.{0,20}terminat\w+",
-        r"\d+\s+(?:days?|months?)\s+.{0,30}advance\s+notice\s+.{0,30}(?:renewal|terminat)",
-        r"notice\s+of\s+non-?renewal\s+.{0,30}\d+\s+days?",
-    ],
-    "Parties": [
-        r"by\s+and\s+between",
-        r"hereinafter\s+(?:referred\s+to\s+)?as",
-        r"entered\s+into\s+by\s+and\s+between",
-        r"collectively\s+referred\s+to\s+as\s+.{0,20}[\"']?parties",
-        r"each\s+party\s+and\s+(?:its\s+)?affiliates",
-    ],
-    "Post-Termination Services": [
-        r"post-?terminat\w+\s+services?",
-        r"transition\s+services?\s+.{0,30}terminat",
-        r"wind-?down\s+services?",
-        r"following\s+terminat\w+\s+.{0,40}shall\s+(?:continue|provide|assist)",
-        r"survival\s+.{0,20}terminat\w+\s+.{0,20}services?",
-    ],
-    "Rofr/Rofo/Rofn": [
-        r"right\s+of\s+first\s+refusal",
-        r"right\s+of\s+first\s+offer",
-        r"right\s+of\s+first\s+negotiation",
-        r"\bROFR\b",
-        r"\bROFO\b",
-        r"\bROFN\b",
-        r"first\s+refusal\s+right",
-    ],
-    "Renewal Term": [
-        r"(?:automatic(?:ally)?|auto)\s+.{0,20}renew",
-        r"renewal\s+term",
-        r"successive\s+.{0,20}(?:one-?year\s+)?term",
-        r"shall\s+renew\s+(?:for|unless)",
-        r"(?:automatically\s+)?extend(?:ed|s)?\s+for\s+(?:an\s+)?additional",
-    ],
-    "Revenue/Profit Sharing": [
-        r"revenue[- ]sharing",
-        r"profit[- ]sharing",
-        r"\d+\s*%\s+of\s+.{0,20}(?:revenue|profit|sales)",
-        r"royalt(?:y|ies)",
-        r"revenue\s+share",
-        r"share\s+.{0,20}(?:net\s+)?(?:revenue|profit|proceeds)",
-    ],
-    "Termination For Convenience": [
-        r"terminat\w+\s+for\s+convenience",
-        r"terminat\w+\s+.{0,40}without\s+cause",
-        r"terminat\w+\s+at\s+(?:any\s+time|its\s+(?:sole\s+)?(?:discretion|option))",
-        r"may\s+terminat\w+\s+this\s+agreement\s+at\s+any\s+time",
-        r"terminat\w+\s+upon\s+.{0,20}written\s+notice\s+.{0,20}without\s+cause",
-    ],
-    "Third Party Beneficiary": [
-        r"third[- ]party\s+beneficiar\w+",
-        r"intended\s+beneficiar\w+",
-        r"no\s+third[- ]party\s+.{0,30}(?:benefit|rights?|intended)",
-        r"no\s+third\s+parties?\s+shall\s+(?:be\s+)?(?:beneficiar\w+|have\s+rights?)",
-        r"benefit\s+of\s+third\s+parties",
-    ],
-    "Uncapped Liability": [
-        r"unlimited\s+liability",
-        r"no\s+(?:limitation|limit)\s+on\s+liability",
-        r"notwithstanding\s+.{0,60}limitation\s+of\s+liability\s+.{0,60}shall\s+not\s+apply",
-        r"liability\s+.{0,20}(?:is\s+)?uncapped",
-        r"excluded\s+from\s+the\s+limitation\s+of\s+liability",
-        r"exceptions?\s+to\s+.{0,20}limitation\s+of\s+liability",
-    ],
-    "Warranty Duration": [
-        r"warranty\s+(?:period|term|for\s+a\s+period)",
-        r"warrants?\s+for\s+.{0,20}\d+",
-        r"warranty\s+.{0,20}expir\w+",
-        r"\d+[- ](?:year|month|day)\s+warranty",
-        r"warranty\s+(?:shall\s+)?(?:last|remain\s+in\s+effect|be\s+valid)\s+for",
-    ],
-}
+_LLM_MAX_CHARS = 80000  # ~20K tokens — safe margin under gpt-4o-mini's 128K context
 
 
-def _extract_paragraph(text: str, match_start: int, match_end: int) -> str:
-    """Return the paragraph containing [match_start, match_end], trimmed to 700 chars."""
-    para_start = text.rfind('\n\n', 0, match_start)
-    para_start = para_start + 2 if para_start != -1 else 0
-
-    if match_start - para_start > 500:
-        nl = text.rfind('\n', para_start, match_start)
-        if nl != -1:
-            para_start = nl + 1
-
-    para_end = text.find('\n\n', match_end)
-    para_end = para_end if para_end != -1 else len(text)
-
-    snippet = text[para_start:para_end].strip()
-    if len(snippet) > 700:
-        trimmed = snippet[:700]
-        for sep in ('\n', '. ', ' '):
-            pos = trimmed.rfind(sep)
-            if pos > 400:
-                return trimmed[:pos + len(sep)].rstrip() + '…'
-        return trimmed.rstrip() + '…'
-    return snippet
-
-
-def _find_snippet(text: str, clause: str) -> str:
-    """Keyword-regex search for the paragraph containing clause language. Used only as a
-    last-resort fallback constrained to a window the model already identified."""
-    for pattern in _KW.get(clause, []):
-        m = re.search(pattern, text, re.IGNORECASE)
-        if m:
-            return _extract_paragraph(text, m.start(), m.end())
-    return ""
-
-
-def _extract_excerpt_via_llm(full_text: str, clause_name: str, client) -> str:
-    """Ask an LLM to quote the passage that best establishes the presence of
-    `clause_name` in `full_text`. The BERT model has already flagged the clause
-    as present, so the LLM is instructed to always return its best-available
-    passage — never NONE. Large documents are chunked on paragraph boundaries;
-    the first chunk that yields an excerpt wins."""
-    MAX_CHARS = 80000  # ~20K tokens — safe margin under gpt-4o-mini's 128K context
-
-    def _call(chunk: str) -> str:
-        user_prompt = (
-            f"You are analyzing a legal contract. A neural classifier has already "
-            f"identified a \"{clause_name}\" clause in this contract. Your job is "
-            f"to quote the single passage that best supports that finding.\n\n"
-            f"Rules:\n"
-            f"- Return the exact text from the contract, character-for-character.\n"
-            f"- Quote one self-contained passage (typically 1–6 sentences).\n"
-            f"- Do not add commentary, labels, or wrapping quotation marks.\n"
-            f"- ALWAYS return a passage. If no section is a perfect match, return "
-            f"the closest paragraph — an imperfect quote is better than nothing.\n"
-            f"- Do not return the word NONE or refuse to quote.\n\n"
-            f"Contract:\n\"\"\"\n{chunk}\n\"\"\""
-        )
-        try:
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": "You extract supporting passages from legal contracts. Always return a quoted passage from the provided text — never refuse, never return NONE."},
-                    {"role": "user", "content": user_prompt},
-                ],
-                temperature=0,
-                max_tokens=600,
-            )
-            content = (response.choices[0].message.content or "").strip()
-        except Exception as exc:
-            logger.warning("LLM excerpt extraction failed for '%s': %s", clause_name, exc)
-            return ""
-
-        if not content or content.upper() == "NONE":
-            return ""
-        if content.startswith('"') and content.endswith('"') and len(content) > 1:
-            content = content[1:-1].strip()
-        return content
-
-    if len(full_text) <= MAX_CHARS:
-        return _call(full_text)
+def _chunk_paragraphs(full_text: str, max_chars: int = _LLM_MAX_CHARS) -> list[str]:
+    """Split text into chunks ≤ max_chars on paragraph boundaries."""
+    if len(full_text) <= max_chars:
+        return [full_text]
 
     def _hard_split(s: str) -> list[str]:
-        # Hard split a paragraph longer than MAX_CHARS so no single chunk can
-        # overflow the LLM context (rare in normal contracts, but possible when
-        # a contract has no \n\n breaks).
-        return [s[i:i + MAX_CHARS] for i in range(0, len(s), MAX_CHARS)]
+        return [s[i:i + max_chars] for i in range(0, len(s), max_chars)]
 
     chunks: list[str] = []
     cur = ""
     for para in full_text.split('\n\n'):
-        if len(para) > MAX_CHARS:
+        if len(para) > max_chars:
             if cur:
                 chunks.append(cur)
                 cur = ""
             chunks.extend(_hard_split(para))
             continue
-        if cur and len(cur) + len(para) + 2 > MAX_CHARS:
+        if cur and len(cur) + len(para) + 2 > max_chars:
             chunks.append(cur)
             cur = para
         else:
             cur = (cur + '\n\n' + para) if cur else para
     if cur:
         chunks.append(cur)
-
-    for chunk in chunks:
-        excerpt = _call(chunk)
-        if excerpt:
-            return excerpt
-    return ""
+    return chunks
 
 
-def _find_snippet_by_terms(text: str, clause: str) -> str:
-    """Term-density fallback. Used only as a last-resort within a model-identified window."""
-    _STOP = {'of', 'or', 'and', 'the', 'a', 'an', 'to', 'in', 'for', 'on', 'at', 'not'}
-    terms = [w.lower() for w in re.split(r'[\s/\-]+', clause)
-             if w.lower() not in _STOP and len(w) > 2]
-    if not terms:
-        return ""
+def _grade_clause_via_llm(
+    full_text: str,
+    clause_name: str,
+    party_role: str,
+    client,
+) -> dict:
+    """Party-aware excerpt extraction + risk grading in one LLM call.
 
-    best_para, best_score = "", 0
-    for para in (p.strip() for p in text.split('\n\n') if len(p.strip()) > 50):
-        lower = para.lower()
-        score = sum(lower.count(t) for t in terms)
-        if score > best_score:
-            best_score, best_para = score, para
+    Returns {"excerpt", "risk", "factors", "rationale"} or {} on failure.
+    Large contracts are chunked on paragraph boundaries; the first chunk that
+    yields a valid graded result wins.
+    """
+    rubric = CLAUSE_RUBRICS.get(clause_name)
+    if rubric is None:
+        logger.error("No rubric defined for clause '%s'.", clause_name)
+        return {}
 
-    if not best_para:
-        return ""
-    if len(best_para) > 700:
-        best_para = best_para[:700].rsplit(' ', 1)[0] + '…'
-    return best_para
+    party_label = _party_label(party_role)
+    schema_block = (
+        '{\n'
+        '  "excerpt": "<verbatim passage, 1–6 sentences, copied character-for-character from the contract>",\n'
+        '  "risk":    "HIGH" | "MEDIUM" | "LOW",\n'
+        '  "factors": ["<short factual finding from the excerpt that drove the risk tier>", "..."],\n'
+        '  "rationale": "<2–3 sentences explaining why this tier was chosen for ' + party_label + '>"\n'
+        '}'
+    )
+
+    system_msg = (
+        "You are a legal-risk analyst grading clauses in a commercial contract. "
+        "You grade strictly from the perspective of one named party — never as an "
+        "abstract property of the clause. You apply the rubric you are given verbatim "
+        "and return a single JSON object that exactly matches the requested schema. "
+        "You do not refuse, do not include markdown fences, and do not add commentary "
+        "outside the JSON."
+    )
+
+    def _call(chunk: str) -> dict:
+        user_prompt = (
+            f"PARTY YOU REPRESENT: {party_label}\n"
+            f"  (Risk must be graded from this party's perspective only.)\n\n"
+            f"CLAUSE TYPE: {clause_name}\n"
+            f"DEFINITION: {rubric['definition']}\n\n"
+            f"RISK-DRIVING FACTORS (look for these in the excerpt):\n"
+            f"  {rubric['factors']}\n\n"
+            f"TIER TRIGGERS (apply verbatim — do NOT invent your own scale):\n"
+            f"  {rubric['guidance']}\n\n"
+            f"INSTRUCTIONS:\n"
+            f"  1. Locate the passage in the CONTRACT below that establishes the {clause_name} clause.\n"
+            f"  2. Quote it verbatim, 1–6 sentences, character-for-character.\n"
+            f"  3. Identify which factual features from the FACTORS list appear in the excerpt.\n"
+            f"  4. Apply the TIER TRIGGERS above to choose HIGH, MEDIUM, or LOW for {party_label}.\n"
+            f"  5. Write a 2–3 sentence rationale grounded in the factual features you identified.\n"
+            f"  6. Return ONE JSON object matching this schema exactly — no markdown, no fences, no commentary:\n\n"
+            f"{schema_block}\n\n"
+            f"CONTRACT:\n\"\"\"\n{chunk}\n\"\"\""
+        )
+        try:
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": system_msg},
+                    {"role": "user", "content": user_prompt},
+                ],
+                temperature=0,
+                max_tokens=900,
+                response_format={"type": "json_object"},
+            )
+            content = (response.choices[0].message.content or "").strip()
+        except Exception as exc:
+            logger.warning("LLM grading failed for '%s': %s", clause_name, exc)
+            return {}
+
+        try:
+            parsed = json.loads(content)
+        except json.JSONDecodeError as exc:
+            logger.warning("LLM returned non-JSON for '%s': %s", clause_name, exc)
+            return {}
+
+        excerpt = (parsed.get("excerpt") or "").strip()
+        risk = (parsed.get("risk") or "").strip().upper()
+        factors = parsed.get("factors") or []
+        rationale = (parsed.get("rationale") or "").strip()
+
+        if risk not in VALID_RISK_TIERS:
+            logger.warning("LLM returned invalid risk tier '%s' for '%s'.", risk, clause_name)
+            return {}
+        if not isinstance(factors, list):
+            factors = [str(factors)]
+        factors = [str(f).strip() for f in factors if str(f).strip()]
+        if not excerpt:
+            return {}
+        if excerpt.startswith('"') and excerpt.endswith('"') and len(excerpt) > 1:
+            excerpt = excerpt[1:-1].strip()
+
+        return {
+            "excerpt":   excerpt,
+            "risk":      risk,
+            "factors":   factors,
+            "rationale": rationale,
+        }
+
+    for chunk in _chunk_paragraphs(full_text):
+        result = _call(chunk)
+        if result:
+            return result
+    return {}
 
 
 def _trim_snippet(snippet: str, max_chars: int = 800) -> str:
@@ -528,15 +436,17 @@ def _trim_snippet(snippet: str, max_chars: int = 800) -> str:
     return trimmed.rstrip() + '…'
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Main classifier
-# ─────────────────────────────────────────────────────────────────────────────
+# ── Main classifier ──────────────────────────────────────────────────────────
 
 class LegalClauseClassifier:
-    """Loads a fine-tuned Legal-BERT checkpoint when available; falls back to keyword heuristics."""
+    """Legal-BERT (CUAD) detector + party-aware LLM risk grader.
+
+    Detection: the fine-tuned Legal-BERT checkpoint over sliding windows.
+    Grading: per-clause LLM call applying CLAUSE_RUBRICS for the named party_role.
+    """
 
     def __init__(self, checkpoint_path: str | None = None) -> None:
-        self.mode = "heuristic"
+        self.mode = "model"
         self.model = None
         self.tokenizer = None
         self.id_to_clause: dict[int, str] = {}
@@ -546,15 +456,13 @@ class LegalClauseClassifier:
         if checkpoint_path is None:
             checkpoint_path = str(Path(__file__).parent / "models" / "Legal-BERT_(CUAD).pt")
 
-        if not os.path.exists(checkpoint_path):
-            raise FileNotFoundError(f"Model checkpoint not found: {checkpoint_path}")
-
         self._load_checkpoint(checkpoint_path)
 
     def _load_checkpoint(self, path: str) -> None:
         try:
+            import pickle
             import torch
-            from training import ModelArtifacts, _TfIdfPipeline  # noqa: F401 — needed for unpickling
+            from training import ModelArtifacts, _TfIdfPipeline  # noqa: F401
 
             device = torch.device(
                 "cuda" if torch.cuda.is_available()
@@ -569,19 +477,44 @@ class LegalClauseClassifier:
             self.model = art.model
             self.tokenizer = art.tokenizer
             self.id_to_clause = art.id_to_clause
-            self.thresholds = {v: 0.5 for v in art.id_to_clause.values()}
             self._device = device
-            self.mode = "model"
 
-            # Load per-clause thresholds from s4_outputs.pkl if present
-            s4_path = Path(path).parent.parent / "s4_outputs.pkl"
+            # Load per-clause thresholds from s4_outputs.pkl (produced by the
+            # notebook's Section 4). Without this file the deployed app cannot
+            # reproduce the macro-F1 reported in the notebook, since per-clause
+            # thresholds (e.g. Document Name 0.05, Cap On Liability 0.90) are
+            # not encoded in the model checkpoint.
+            s4_path = Path(__file__).parent / "s4_outputs.pkl"
+            per_clause_thresholds: dict[str, float] = {}
             if s4_path.exists():
-                import pickle
-                with open(s4_path, "rb") as f:
-                    s4 = pickle.load(f)
-                if "per_t_best" in s4:
-                    self.thresholds = s4["per_t_best"]
-                    logger.info("Loaded per-clause thresholds from s4_outputs.pkl.")
+                try:
+                    with s4_path.open("rb") as f:
+                        s4 = pickle.load(f)
+                    raw = s4.get("per_t_best") or {}
+                    if isinstance(raw, dict):
+                        per_clause_thresholds = {str(k): float(v) for k, v in raw.items()}
+                    logger.info(
+                        "Loaded %d per-clause thresholds from %s.",
+                        len(per_clause_thresholds), s4_path,
+                    )
+                except Exception as exc:
+                    logger.warning(
+                        "Failed to read %s: %s — falling back to t=0.5.",
+                        s4_path, exc,
+                    )
+
+            if not per_clause_thresholds:
+                logger.warning(
+                    "%s missing or empty — using t=0.5 for every clause. "
+                    "Predictions will not match the notebook's reported macro-F1 "
+                    "until s4_outputs.pkl is supplied.",
+                    s4_path,
+                )
+
+            self.thresholds = {
+                name: per_clause_thresholds.get(name, 0.5)
+                for name in art.id_to_clause.values()
+            }
 
             logger.info("Loaded Legal-BERT checkpoint from %s.", path)
 
@@ -589,29 +522,21 @@ class LegalClauseClassifier:
             raise RuntimeError(f"Checkpoint load failed: {exc}") from exc
 
     def _get_openai_client(self):
-        """Return a cached OpenAI client, or None if the API key or SDK is missing.
-        A missing client is non-fatal: detection still runs; excerpts come back empty
-        and the UI hides the 'View supporting excerpt' control."""
+        """Return a cached OpenAI client, or None if OPENAI_API_KEY is unset."""
         if hasattr(self, "_openai_client"):
             return self._openai_client
         api_key = os.environ.get("OPENAI_API_KEY")
         if not api_key:
-            logger.warning("OPENAI_API_KEY not set — supporting excerpts will be empty.")
+            logger.warning("OPENAI_API_KEY not set — risk grading will be skipped.")
             self._openai_client = None
             return None
-        try:
-            from openai import OpenAI
-            self._openai_client = OpenAI(api_key=api_key)
-        except ImportError:
-            logger.warning("openai package not installed — supporting excerpts will be empty.")
-            self._openai_client = None
+        from openai import OpenAI
+        self._openai_client = OpenAI(api_key=api_key)
         return self._openai_client
 
-    def _classify_model(self, text: str) -> list[dict]:
-        """Detect clauses with Legal-BERT over sliding windows. Supporting
-        excerpts are intentionally NOT generated here — each excerpt is an LLM
-        round-trip and doing ~20 of them eagerly makes the loading screen
-        unusable. Excerpts are produced lazily via `extract_excerpt` on demand."""
+    def _detect_clauses(self, text: str) -> list[tuple[str, float]]:
+        """Run Legal-BERT over sliding windows; return (clause_name, prob) for
+        every clause whose max window probability exceeds its threshold."""
         import torch
 
         enc = self.tokenizer(
@@ -637,8 +562,6 @@ class LegalClauseClassifier:
                     enc["token_type_ids"][i:i+1], dtype=torch.long
                 ).to(self._device)
             if is_longformer:
-                # Match training-time configuration: global attention on [CLS]
-                # so the classification head can attend across the full window.
                 gam = torch.zeros_like(ids)
                 gam[:, 0] = 1
                 inputs["global_attention_mask"] = gam
@@ -650,64 +573,85 @@ class LegalClauseClassifier:
 
         max_probs = window_probs.max(axis=0) if n_windows else np.zeros(n_labels, dtype=np.float32)
 
-        detected: list[tuple[int, str, float]] = []
+        detected: list[tuple[str, float]] = []
         for label_id, clause_name in self.id_to_clause.items():
             t = self.thresholds.get(clause_name, 0.5)
             prob = float(max_probs[label_id])
             if prob >= t:
-                detected.append((label_id, clause_name, prob))
+                detected.append((clause_name, prob))
+        return detected
 
-        results: list[dict] = [
-            {
+    def _classify_model(self, text: str, party_role: str) -> list[dict]:
+        """Detect every CUAD clause in `text` and grade each one for `party_role`.
+
+        Detection is the BERT model; grading is one LLM call per detected clause
+        that returns excerpt + risk + factors + rationale per CLAUSE_RUBRICS.
+        If the LLM is unavailable, risk is None for every clause."""
+        detected = self._detect_clauses(text)
+        client = self._get_openai_client()
+
+        def _build(clause_name: str, prob: float) -> dict:
+            base = {
                 "clause":     clause_name,
                 "confidence": round(prob, 3),
-                "risk":       RISK_LEVELS.get(clause_name, "LOW"),
                 "category":   _get_category(clause_name),
-                "snippet":    "",   # filled lazily by /api/excerpt on card expand
+                "party_role": party_role,
                 "detected":   True,
             }
-            for _, clause_name, prob in detected
-        ]
+            if client is None:
+                base.update({
+                    "risk":      None,
+                    "snippet":   "",
+                    "factors":   [],
+                    "rationale": "Risk not graded — OPENAI_API_KEY is not configured. The clause was detected by the neural model, but party-aware risk grading requires the LLM grader.",
+                })
+                return base
+
+            graded = _grade_clause_via_llm(text, clause_name, party_role, client)
+            if not graded:
+                base.update({
+                    "risk":      None,
+                    "snippet":   "",
+                    "factors":   [],
+                    "rationale": "Risk not graded — the LLM grader did not return a valid response for this clause.",
+                })
+                return base
+
+            base.update({
+                "risk":      graded["risk"],
+                "snippet":   _trim_snippet(graded["excerpt"]),
+                "factors":   graded["factors"],
+                "rationale": graded["rationale"],
+            })
+            return base
+
+        if client is not None and detected:
+            with ThreadPoolExecutor(max_workers=min(8, len(detected))) as pool:
+                results = list(pool.map(lambda args: _build(*args), detected))
+        else:
+            results = [_build(name, prob) for name, prob in detected]
+
         results.sort(key=lambda x: x["confidence"], reverse=True)
         return results
 
-    def extract_excerpt(self, text: str, clause_name: str) -> str:
-        """Lazy per-clause excerpt. Called once per card when the user expands
-        it. Guarantees a non-empty return value by falling through:
-        LLM verbatim → keyword regex → term-density → first substantive paragraph.
-        An imperfect excerpt beats a blank card."""
-        client = self._get_openai_client()
-        if client is not None:
-            excerpt = _extract_excerpt_via_llm(text, clause_name, client)
-            if excerpt:
-                return _trim_snippet(excerpt)
-
-        for finder in (_find_snippet, _find_snippet_by_terms):
-            excerpt = finder(text, clause_name)
-            if excerpt:
-                return _trim_snippet(excerpt)
-
-        for para in (p.strip() for p in text.split('\n\n')):
-            if len(para) > 60:
-                return _trim_snippet(para)
-
-        head = text.strip()[:700]
-        return head if head else "(Clause detected by the neural model; no localizable passage could be isolated.)"
-
-    def classify(self, text: str) -> dict:
-        clauses = self._classify_model(text)
-        high = medium = low = 0
+    def classify(self, text: str, party_role: str = "generic") -> dict:
+        clauses = self._classify_model(text, party_role)
+        high = medium = low = ungraded = 0
         for c in clauses:
             risk = c["risk"]
             if risk == "HIGH":
                 high += 1
             elif risk == "MEDIUM":
                 medium += 1
-            else:
+            elif risk == "LOW":
                 low += 1
+            else:
+                ungraded += 1
         return {
             "mode":         self.mode,
+            "party_role":   party_role,
+            "party_label":  _party_label(party_role),
             "total":        len(clauses),
-            "risk_summary": {"HIGH": high, "MEDIUM": medium, "LOW": low},
+            "risk_summary": {"HIGH": high, "MEDIUM": medium, "LOW": low, "UNGRADED": ungraded},
             "clauses":      clauses,
         }

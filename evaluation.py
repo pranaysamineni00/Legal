@@ -44,16 +44,9 @@ def tune_per_clause_thresholds(
 ) -> dict[str, float]:
     """Find the threshold per clause that maximises per-clause F1 on the given logits.
 
-    For clauses with fewer than `min_positives_for_full_sweep` positives in `labels`,
-    the per-clause F1 sweep on val is dominated by single-example noise (1-3 positives
-    can yield F1=1.0 at an arbitrarily low threshold that does not generalise). For
-    these rare clauses the function returns `rare_class_default` directly without
-    sweeping. The default 0.5 is the Bayes-optimal sigmoid decision boundary under an
-    uninformative prior and the value used by the CUAD baselines (Hendrycks et al.,
-    2021) and Legal-BERT (Chalkidis et al., 2020); the fallback-for-low-support-classes
-    approach follows Yang (1999) "A study of thresholding strategies for text
-    categorization" and Lewis (1995, SIGIR), which both recommend a global default
-    in place of per-class tuning when class support is too small for stable estimation.
+    Clauses with fewer than `min_positives_for_full_sweep` positives skip the sweep
+    and return `rare_class_default` (0.5 — Bayes-optimal under uninformative prior).
+    See the notebook narrative for the methodology citations.
     """
     if thresholds is None:
         thresholds = np.arange(0.05, 0.96, 0.05)
@@ -90,15 +83,9 @@ def bootstrap_macro_f1_ci(
     confidence: float = 0.95,
     seed: int = 42,
 ) -> dict[str, float]:
-    """Bootstrap a confidence interval for macro-F1 by resampling rows (contracts) with replacement.
+    """Bootstrap a 95% percentile CI for macro-F1 by resampling rows with replacement.
 
-    The CUAD test set is small (~50 contracts after the 80/10/10 split), so a
-    single point estimate of macro-F1 is noisy. This function reports a 95%
-    bootstrap percentile interval to convey that uncertainty alongside the
-    headline number — relevant when comparing the result against the 0.70
-    business threshold defined in Section 3.
-
-    Returns dict with keys: macro_f1, ci_low, ci_high, n_resamples, confidence.
+    Returns {macro_f1, ci_low, ci_high, n_resamples, confidence}.
     """
     probs = _sigmoid(logits)
     n_rows, n_labels = probs.shape
@@ -269,11 +256,7 @@ def plot_precision_recall_curves(
     labels_dict: dict[str, np.ndarray],
     save_path: str | None = None,
 ) -> None:
-    """Macro-averaged precision-recall curve for each model.
-
-    For each model, per-label PR curves are interpolated onto a shared recall
-    axis and averaged, giving a threshold-independent view of ranking quality.
-    """
+    """Macro-averaged precision-recall curve for each model."""
     import matplotlib.pyplot as plt
 
     recall_base = np.linspace(0, 1, 101)
@@ -324,12 +307,7 @@ def plot_model_comparison(
     metric: str = "f1",
     save_path: str | None = None,
 ) -> None:
-    """Heatmap: models (rows) × clause types (columns) for a given metric.
-
-    A heatmap is far more readable than a grouped bar chart when there are
-    many clause types: colour immediately shows which model wins on which clause,
-    and the layout never overlaps.
-    """
+    """Heatmap: models (rows) × clause types (columns) for a given metric."""
     if not results:
         raise ValueError("results dict is empty — nothing to plot")
 

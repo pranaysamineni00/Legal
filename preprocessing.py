@@ -160,20 +160,10 @@ def sample_contracts(
     frac: float = 1.0,
     seed: int = 42,
 ) -> list[dict[str, Any]]:
-    """Return a reproducible random sample of ``frac`` of the given contract records.
+    """Return a reproducible random sample of `frac` of `contract_records`.
 
-    Sampling is performed *before* the train/val/test split so every split
-    receives a proportional share of the reduced pool.  The methodology
-    (chunking, label assignment, split ratios) is identical to the full run —
-    only the number of contracts changes.
-
-    Args:
-        contract_records: Full list of contract records.
-        frac: Fraction of contracts to keep (0 < frac <= 1.0).
-        seed: Random seed for reproducibility.
-
-    Returns:
-        Shuffled-and-subsampled list of contract records.
+    Sampling happens before the train/val/test split so every split gets a
+    proportional share of the reduced pool.
     """
     if frac >= 1.0:
         return contract_records
@@ -272,11 +262,7 @@ def compute_sample_weights(
     chunk_examples: list[dict[str, Any]],
     negative_weight: float = 0.1,
 ) -> list[float]:
-    """Per-sample loss weights: all-negative chunks get negative_weight, others get 1.0.
-
-    This is the feature-level downweighting from the CUAD paper — reduces the
-    outsized influence of the majority all-negative chunks during training.
-    """
+    """Per-sample loss weights: all-negative chunks get negative_weight, others get 1.0."""
     weights = []
     for ex in chunk_examples:
         is_all_negative = all(label_val == 0.0 for label_val in ex["labels"])
@@ -292,19 +278,12 @@ def compute_pos_weight(
 ) -> torch.Tensor:
     """Per-label pos_weight tensor for BCEWithLogitsLoss: neg_count / pos_count.
 
-    Clause types with fewer than rare_threshold positive chunks receive a rare_boost
-    multiplier before capping, giving the loss function stronger signal on tail classes
-    without changing the weighting formula for common clause types.
-    max_weight raised to 50 (from 10) so natural neg/pos ratios for mid-rare classes
-    are not suppressed.
+    Labels with fewer than rare_threshold positives are boosted by rare_boost
+    before clipping. Zero-positive labels get max_weight (treated as rarest).
     """
     label_matrix = np.asarray([ex["labels"] for ex in chunk_examples], dtype=np.float32)
     positive_counts = label_matrix.sum(axis=0)
     negative_counts = len(label_matrix) - positive_counts
-    # Labels with zero positives in train get max_weight so the loss treats them as
-    # the rarest possible class (rather than the arbitrary 1.0 default that fell out
-    # of the np.where else branch). MIN_POSITIVES filtering should prevent this at
-    # the dataset level, but DEV_MODE sampling can still produce 0-positive labels.
     weights = np.where(positive_counts > 0, negative_counts / np.maximum(positive_counts, 1.0), max_weight)
     weights = np.where(positive_counts < rare_threshold, weights * rare_boost, weights)
     weights = np.clip(weights, 0, max_weight)
@@ -330,14 +309,8 @@ def prepare_chunked_splits(
 ) -> dict[str, Any]:
     """End-to-end helper: build clause mappings, split contracts, tokenize, return all artifacts.
 
-    Note: call filter_clauses(cuad_df) before passing in if you want to exclude
-    low-frequency clause types. This function uses whatever clause types are present in cuad_df.
-
-    Args:
-        sample_frac: Fraction of contracts to use (0 < frac <= 1.0).  Values
-            below 1.0 invoke ``sample_contracts`` before splitting, giving a
-            representative subset that runs proportionally faster.  Set to 1.0
-            (default) for the full dataset.
+    Call filter_clauses(cuad_df) first to exclude low-frequency clause types.
+    sample_frac < 1.0 invokes sample_contracts before splitting.
     """
     tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
     clause_to_id, id_to_clause = build_clause_mappings(cuad_df)
@@ -348,7 +321,9 @@ def prepare_chunked_splits(
     train_ex = build_chunk_examples(train_records, clause_to_id, tokenizer, max_length, stride)
     val_ex   = build_chunk_examples(val_records,   clause_to_id, tokenizer, max_length, stride)
     test_ex  = build_chunk_examples(test_records,  clause_to_id, tokenizer, max_length, stride)
-    train_sample_weights = compute_sample_weights(train_ex)
+    # pos_weight is consumed by training._run_training_loop's reconstruction;
+    # per-sample weights are recomputed batch-by-batch from labels in the same
+    # loop, so compute_sample_weights is not pre-computed here.
     pos_weight_tensor = compute_pos_weight(train_ex)
     return {
         "tokenizer": tokenizer,
@@ -359,6 +334,5 @@ def prepare_chunked_splits(
         "train_dataset": MultiLabelChunkDataset(train_ex),
         "val_dataset":   MultiLabelChunkDataset(val_ex),
         "test_dataset":  MultiLabelChunkDataset(test_ex),
-        "train_sample_weights": train_sample_weights,
         "pos_weight": pos_weight_tensor,
     }

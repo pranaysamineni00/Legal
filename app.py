@@ -4,15 +4,13 @@ from __future__ import annotations
 import logging
 import os
 import tempfile
-from collections import OrderedDict
 from pathlib import Path
-from uuid import uuid4
 
 from dotenv import load_dotenv
 from flask import Flask, Response, jsonify, request, send_from_directory
 from flask_cors import CORS
 
-from classifier import LegalClauseClassifier
+from classifier import PARTY_ROLE_IDS, PARTY_ROLES, LegalClauseClassifier
 
 load_dotenv()
 
@@ -27,27 +25,6 @@ CORS(app)
 
 _classifier: LegalClauseClassifier | None = None
 
-# In-memory cache of extracted document text keyed by a generated id. Used by
-# the lazy /api/excerpt endpoint so the client doesn't have to re-POST the
-# entire document on every card expansion. Bounded LRU — oldest evicted first.
-_DOC_CACHE_MAX = 32
-_document_cache: "OrderedDict[str, str]" = OrderedDict()
-
-
-def _cache_document(text: str) -> str:
-    doc_id = uuid4().hex
-    _document_cache[doc_id] = text
-    while len(_document_cache) > _DOC_CACHE_MAX:
-        _document_cache.popitem(last=False)
-    return doc_id
-
-
-def _lookup_document(doc_id: str) -> str | None:
-    if doc_id in _document_cache:
-        _document_cache.move_to_end(doc_id)
-        return _document_cache[doc_id]
-    return None
-
 
 def get_classifier() -> LegalClauseClassifier:
     global _classifier
@@ -60,27 +37,17 @@ def extract_text(file_path: str, filename: str) -> str:
     ext = Path(filename).suffix.lower()
 
     if ext == ".pdf":
-        try:
-            from pypdf import PdfReader
-        except ImportError:
-            try:
-                from PyPDF2 import PdfReader  # type: ignore[no-redef]
-            except ImportError:
-                raise RuntimeError("PDF support requires pypdf: pip install pypdf")
+        from pypdf import PdfReader
         reader = PdfReader(file_path)
         pages = [page.extract_text() or "" for page in reader.pages]
         return "\n".join(pages)
 
     if ext == ".docx":
-        try:
-            import docx
-        except ImportError:
-            raise RuntimeError("DOCX support requires python-docx: pip install python-docx")
+        import docx
         doc = docx.Document(file_path)
         return "\n".join(p.text for p in doc.paragraphs)
 
-    # Plain text — try common encodings
-    for enc in ("utf-8", "latin-1", "cp1252"):
+    for enc in ("utf-8", "latin-1"):
         try:
             with open(file_path, "r", encoding=enc) as fh:
                 return fh.read()
@@ -102,7 +69,11 @@ def index():
 @app.route("/api/status")
 def status():
     clf = get_classifier()
-    return jsonify({"mode": clf.mode, "status": "ready"})
+    return jsonify({
+        "mode":        clf.mode,
+        "status":      "ready",
+        "party_roles": PARTY_ROLES,
+    })
 
 
 @app.route("/api/classify", methods=["POST"])
@@ -117,6 +88,10 @@ def classify():
     ext = Path(file.filename).suffix.lower()
     if ext not in (".pdf", ".docx", ".txt"):
         return jsonify({"error": f"Unsupported format '{ext}'. Upload PDF, DOCX, or TXT."}), 400
+
+    party_role = (request.form.get("party_role") or "generic").strip()
+    if party_role not in PARTY_ROLE_IDS:
+        return jsonify({"error": f"Invalid party_role '{party_role}'."}), 400
 
     tmp_path = None
     try:
@@ -135,37 +110,14 @@ def classify():
         return jsonify({"error": "No readable text found in this file."}), 400
 
     try:
-        result = get_classifier().classify(text)
+        result = get_classifier().classify(text, party_role=party_role)
     except Exception as exc:
         logger.exception("Classification error")
         return jsonify({"error": f"Classification failed: {exc}"}), 500
 
     result["word_count"] = len(text.split())
     result["char_count"] = len(text)
-    result["document_id"] = _cache_document(text)
     return jsonify(result)
-
-
-@app.route("/api/excerpt", methods=["POST"])
-def excerpt():
-    payload = request.get_json(silent=True) or {}
-    doc_id = (payload.get("document_id") or "").strip()
-    clause = (payload.get("clause") or "").strip()
-
-    if not doc_id or not clause:
-        return jsonify({"error": "Missing 'document_id' or 'clause'."}), 400
-
-    text = _lookup_document(doc_id)
-    if text is None:
-        return jsonify({"error": "Document not in cache — please re-upload."}), 404
-
-    try:
-        snippet = get_classifier().extract_excerpt(text, clause)
-    except Exception as exc:
-        logger.exception("Excerpt extraction error")
-        return jsonify({"error": f"Excerpt extraction failed: {exc}"}), 500
-
-    return jsonify({"excerpt": snippet})
 
 
 @app.route("/api/explain", methods=["POST"])
@@ -183,10 +135,7 @@ def explain():
             "error": "OpenAI API key not configured. Add OPENAI_API_KEY to the .env file."
         }), 500
 
-    try:
-        from openai import OpenAI
-    except ImportError:
-        return jsonify({"error": "openai package not installed: pip install openai"}), 500
+    from openai import OpenAI
 
     excerpt_for_prompt = excerpt[:4000]
     user_prompt = (
@@ -219,7 +168,6 @@ def explain():
 
 if __name__ == "__main__":
     logger.info("Initializing Legal-BERT classifier...")
-    get_classifier()
     clf = get_classifier()
     logger.info("Mode: %s | Server: http://127.0.0.1:5001", clf.mode)
     app.run(host="127.0.0.1", port=5001, debug=False)

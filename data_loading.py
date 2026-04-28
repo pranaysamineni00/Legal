@@ -1,11 +1,35 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
 from huggingface_hub import hf_hub_download
+
+
+# CUAD questions are templated as: '... related to "<Clause Name>" that should ...'
+# The clause name is the substring inside the first pair of double quotes, used
+# as a fallback when the qa["id"] does not carry the canonical "<title>__<clause>" form.
+_QUESTION_CLAUSE_RE = re.compile(r'related to "([^"]+)"')
+
+
+def _extract_clause_type(qa: dict[str, Any]) -> str:
+    """Extract clause_type from a CUAD `qa` entry.
+
+    Primary: split qa["id"] on the standard "<title>__<clause>" delimiter.
+    Fallback: parse the clause name from qa["question"] (every CUAD question
+    contains 'related to "<Clause Name>"'). Raising rather than returning a
+    silent default avoids polluting the clause taxonomy with ill-formed ids.
+    """
+    qa_id = qa.get("id", "")
+    if "__" in qa_id:
+        return qa_id.split("__", 1)[-1]
+    match = _QUESTION_CLAUSE_RE.search(qa.get("question", ""))
+    if match:
+        return match.group(1)
+    raise ValueError(f"Could not extract clause_type from CUAD qa entry: id={qa_id!r}")
 
 
 def _parse_cuad_json(cuad: dict[str, Any]) -> pd.DataFrame:
@@ -19,7 +43,7 @@ def _parse_cuad_json(cuad: dict[str, Any]) -> pd.DataFrame:
                 rows.append(
                     {
                         "contract_title": doc["title"],
-                        "clause_type": qa["id"].split("__", 1)[-1],
+                        "clause_type": _extract_clause_type(qa),
                         "question": qa["question"],
                         "contract_text": context,
                         "has_answer": bool(len(answers) > 0),

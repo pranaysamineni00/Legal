@@ -63,7 +63,7 @@
     }
 
     .header-inner {
-      max-width: 1120px;
+      max-width: 1280px;
       margin: 0 auto;
       padding: 0 32px;
       height: 60px;
@@ -141,10 +141,19 @@
     /* ── Main ─────────────────────────────────────────────────────────────── */
     main {
       flex: 1;
-      max-width: 820px;
+      max-width: 1280px;
       margin: 0 auto;
       width: 100%;
-      padding: 0 24px 80px;
+      padding: 0 32px 80px;
+    }
+
+    /* Hero and upload stay narrow — only the dashboard breaks wider. */
+    .hero,
+    .upload-card,
+    .error-banner {
+      max-width: 860px;
+      margin-left: auto;
+      margin-right: auto;
     }
 
     /* ── Hero ─────────────────────────────────────────────────────────────── */
@@ -193,6 +202,112 @@
       color: var(--ink-2);
       max-width: 560px;
       font-weight: 400;
+    }
+
+    /* ── Party-role selector ─────────────────────────────────────────────── */
+    .role-selector {
+      padding: 18px 20px 14px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface-alt);
+    }
+
+    .role-selector-label {
+      display: block;
+      font-size: 11.5px;
+      font-weight: 700;
+      letter-spacing: .8px;
+      text-transform: uppercase;
+      color: var(--ink-3);
+      margin-bottom: 8px;
+    }
+
+    .role-selector-hint {
+      font-size: 12.5px;
+      color: var(--ink-3);
+      margin-top: 8px;
+      line-height: 1.4;
+    }
+
+    .role-select {
+      width: 100%;
+      padding: 10px 12px;
+      font-size: 14px;
+      font-family: inherit;
+      color: var(--ink-1);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-sm);
+      cursor: pointer;
+      transition: border-color .15s, box-shadow .15s;
+    }
+
+    .role-select:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-pale);
+    }
+
+    /* ── In-card section labels (re-used everywhere a label appears) ─────── */
+    .card-section-label {
+      display: block;
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: .8px;
+      text-transform: uppercase;
+      color: var(--ink-3);
+      margin-bottom: 6px;
+    }
+
+    .card-section-label + .card-section-label {
+      margin-top: 14px;
+    }
+
+    /* ── Per-clause rationale & factors ──────────────────────────────────── */
+    .grade-block {
+      margin: 14px 0 14px;
+      padding: 14px 16px;
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      border-radius: var(--r-sm);
+    }
+
+    .grade-rationale {
+      font-size: 13px;
+      line-height: 1.55;
+      color: var(--ink-1);
+    }
+
+    .grade-factors {
+      margin-top: 8px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+
+    .grade-factor-chip {
+      font-size: 11.5px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--ink-2);
+      font-weight: 500;
+    }
+
+    .grade-ungraded {
+      font-size: 12.5px;
+      color: var(--ink-3);
+      font-style: italic;
+    }
+
+    .factors-section {
+      margin-top: 14px;
+    }
+
+    .meta-party {
+      font-size: 11.5px;
+      color: var(--ink-3);
+      margin-left: 6px;
     }
 
     /* ── Upload Card ─────────────────────────────────────────────────────── */
@@ -608,8 +723,8 @@
     /* ── Clauses Grid ────────────────────────────────────────────────────── */
     .clauses-grid {
       display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 14px;
+      grid-template-columns: repeat(auto-fit, minmax(440px, 1fr));
+      gap: 18px;
     }
 
     /* ── Clause Card ─────────────────────────────────────────────────────── */
@@ -617,7 +732,7 @@
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--r);
-      padding: 20px;
+      padding: 24px 26px;
       box-shadow: var(--sh);
       transition: box-shadow .2s, transform .2s, border-color .2s;
       animation: cardIn .4s cubic-bezier(.16,1,.3,1) both;
@@ -632,6 +747,7 @@
     .clause-card[data-risk="HIGH"] { border-left: 3px solid var(--high); }
     .clause-card[data-risk="MEDIUM"] { border-left: 3px solid #D97706; }
     .clause-card[data-risk="LOW"] { border-left: 3px solid var(--low); }
+    .clause-card[data-risk="UNGRADED"] { border-left: 3px solid var(--ink-3); }
 
     .card-top {
       display: flex;
@@ -678,6 +794,8 @@
     .risk-badge.MEDIUM::before { background: var(--med); }
     .risk-badge.LOW    { background: var(--low-bg);   color: var(--low);  border: 1px solid var(--low-border); }
     .risk-badge.LOW::before    { background: var(--low); }
+    .risk-badge.UNGRADED { background: var(--surface-alt); color: var(--ink-3); border: 1px solid var(--border); }
+    .risk-badge.UNGRADED::before { background: var(--ink-3); }
 
     .clause-name {
       font-family: 'DM Serif Display', serif;
@@ -690,8 +808,8 @@
     .confidence-row {
       display: flex;
       align-items: center;
-      gap: 10px;
-      margin-bottom: 12px;
+      gap: 12px;
+      margin-bottom: 14px;
     }
 
     .conf-track {
@@ -712,6 +830,7 @@
     .conf-fill.HIGH   { background: linear-gradient(90deg, #EF4444, var(--high)); }
     .conf-fill.MEDIUM { background: linear-gradient(90deg, #FBBF24, #D97706); }
     .conf-fill.LOW    { background: linear-gradient(90deg, var(--navy-3), var(--navy-2)); }
+    .conf-fill.UNGRADED { background: linear-gradient(90deg, var(--ink-3), var(--ink-2)); }
 
     .conf-pct {
       font-family: 'IBM Plex Mono', monospace;
@@ -786,76 +905,30 @@
       flex-shrink: 0;
     }
 
-    /* ── Snippet ─────────────────────────────────────────────────────────── */
-    .snippet-details {
+    /* ── Excerpt block (always visible — not behind a disclosure) ────────── */
+    .excerpt-block {
       border-top: 1px solid var(--border);
-      padding-top: 10px;
+      padding-top: 14px;
       margin-top: 4px;
     }
 
-    .snippet-summary {
-      list-style: none;
-      font-size: 12.5px;
-      color: var(--ink-3);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-weight: 600;
-      user-select: none;
-      letter-spacing: .2px;
-    }
-
-    .snippet-summary::-webkit-details-marker { display: none; }
-
-    .snippet-toggle-icon {
-      width: 14px;
-      height: 14px;
-      transition: transform .2s;
-    }
-
-    .snippet-details[open] .snippet-toggle-icon {
-      transform: rotate(90deg);
-    }
-
-    .snippet-summary:hover { color: var(--ink-2); }
-
     .snippet-text {
-      margin-top: 10px;
       font-size: 13px;
       line-height: 1.7;
       color: var(--ink-2);
       background: var(--surface-alt);
       border: 1px solid var(--border);
+      border-left: 3px solid var(--border-md);
       border-radius: var(--r-sm);
-      padding: 10px 12px;
+      padding: 12px 14px;
       font-family: 'Karla', sans-serif;
       white-space: pre-wrap;
       word-break: break-word;
     }
 
-    .snippet-loading {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      color: var(--ink-3);
+    .snippet-text.snippet-empty {
       font-style: italic;
-      white-space: normal;
-    }
-
-    .snippet-loading .snippet-spinner {
-      width: 12px;
-      height: 12px;
-      border: 2px solid var(--ink-3);
-      border-top-color: transparent;
-      border-radius: 50%;
-      animation: spin .8s linear infinite;
-      flex-shrink: 0;
-    }
-
-    .snippet-error {
-      color: var(--high);
-      font-style: normal;
+      color: var(--ink-3);
     }
 
     .explain-btn {
@@ -943,12 +1016,13 @@
 
     /* ── Responsive ──────────────────────────────────────────────────────── */
     @media (max-width: 680px) {
+      .clauses-grid { grid-template-columns: 1fr; }
       .header-inner { padding: 0 20px; }
       .brand-sub { display: none; }
       main { padding: 0 16px 60px; }
       .hero { padding: 44px 0 36px; }
       .drop-zone { padding: 36px 24px; }
-      .clauses-grid { grid-template-columns: 1fr; }
+      .clause-card { padding: 18px; }
       .results-summary { gap: 16px; }
       .meta-items { margin-left: 0; width: 100%; }
     }
@@ -965,9 +1039,8 @@
         <span class="brand-sep">/</span>
         <span class="brand-sub">Legal Clause Intelligence</span>
       </div>
-      <div class="status-badge" id="status-badge">
-        <div class="status-dot"></div>
-        <span id="status-text">Connecting…</span>
+      <div class="status-badge" id="status-badge" style="display:none;">
+        <span id="status-text"></span>
       </div>
     </div>
   </header>
@@ -988,6 +1061,18 @@
 
     <!-- Upload Card -->
     <div class="upload-card" id="upload-card">
+
+      <!-- Party Role Selector -->
+      <div class="role-selector">
+        <label class="role-selector-label" for="party-role">Which party are you?</label>
+        <select class="role-select" id="party-role" name="party_role">
+          <option value="generic">Loading roles…</option>
+        </select>
+        <div class="role-selector-hint">
+          Risk for each detected clause is graded from this party's perspective.
+          The same clause can be high risk for one side and low risk for the other.
+        </div>
+      </div>
 
       <!-- Drop Zone -->
       <div class="drop-zone" id="drop-zone">
@@ -1114,6 +1199,7 @@
     const resultsSection = document.getElementById('results-section');
     const statusText     = document.getElementById('status-text');
     const clausesGrid    = document.getElementById('clauses-grid');
+    const partyRoleEl    = document.getElementById('party-role');
 
     let selectedFile = null;
     let progressInterval = null;
@@ -1123,8 +1209,20 @@
     async function checkStatus() {
       try {
         const res = await fetch('/api/status');
-        if (res.ok) {
-          statusText.textContent = 'Neural Model';
+        if (!res.ok) throw new Error('status not ok');
+        const data = await res.json();
+        statusText.textContent = '';
+
+        // Populate the party-role selector from server-supplied list so role
+        // ids and labels stay authoritative on the backend.
+        const roles = Array.isArray(data.party_roles) ? data.party_roles : [];
+        if (roles.length > 0) {
+          partyRoleEl.innerHTML = roles.map(r =>
+            `<option value="${r.id}">${r.label}</option>`
+          ).join('');
+          // Default to a sensible neutral choice when present.
+          const preferred = roles.find(r => r.id === 'customer') || roles.find(r => r.id === 'generic') || roles[0];
+          if (preferred) partyRoleEl.value = preferred.id;
         }
       } catch (_) {
         statusText.textContent = 'Offline';
@@ -1270,6 +1368,7 @@
 
       const formData = new FormData();
       formData.append('file', selectedFile);
+      formData.append('party_role', partyRoleEl.value || 'generic');
 
       try {
         const res = await fetch('/api/classify', { method: 'POST', body: formData });
@@ -1290,15 +1389,8 @@
       }
     });
 
-    // Holds the id of the currently-classified document on the server. Used by
-    // the lazy /api/excerpt endpoint so we don't re-POST the whole text each
-    // time a card is expanded.
-    let currentDocumentId = null;
-
     // ── Render results ────────────────────────────────────────────────────────
     function renderResults(data) {
-      currentDocumentId = data.document_id || null;
-
       // Summary strip
       document.getElementById('stat-total').textContent  = data.total;
       document.getElementById('count-high').textContent  = data.risk_summary.HIGH;
@@ -1307,7 +1399,9 @@
 
       const words = data.word_count ? data.word_count.toLocaleString() + ' words' : '';
       document.getElementById('meta-words').textContent = words;
-      document.getElementById('meta-mode').innerHTML = `<span class="mode-badge model">Neural Model</span>`;
+      document.getElementById('meta-mode').innerHTML = data.party_label
+        ? `Risk graded from: <strong style="color:var(--ink-2);font-weight:600;">${escHtml(data.party_label)}</strong>'s perspective`
+        : '';
 
       // Build cards
       renderCards(data.clauses, 'all');
@@ -1339,33 +1433,59 @@
       filtered.forEach((clause, idx) => {
         const card = document.createElement('div');
         card.className = 'clause-card';
-        card.dataset.risk = clause.risk;
+        card.dataset.risk = clause.risk || 'UNGRADED';
         card.style.animationDelay = (idx * 40) + 'ms';
 
         const pct = (clause.confidence * 100).toFixed(1);
-        // Excerpts are generated lazily when the user expands the card — every
-        // detected clause gets a "View supporting excerpt" control regardless
-        // of whether the server has one ready yet.
-        const snippetHtml = `
-          <details class="snippet-details" data-clause="${escAttr(clause.clause || '')}">
-            <summary class="snippet-summary">
-              <svg class="snippet-toggle-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-              </svg>
-              View supporting excerpt
-            </summary>
-            <div class="snippet-text snippet-loading">
-              <span class="snippet-spinner"></span>
-              <span>Locating the supporting passage…</span>
+
+        // Rationale + factors block: visible by default, pulled directly from
+        // the server response. Each section is explicitly labelled so a
+        // first-time viewer can tell rationale from factors at a glance.
+        let gradeHtml = '';
+        if (clause.risk && clause.rationale) {
+          const factors = Array.isArray(clause.factors) ? clause.factors : [];
+          const factorsHtml = factors.length > 0
+            ? `<div class="factors-section">
+                 <div class="card-section-label">Key Risk Factors <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-3);">— specific drivers behind the rating</span></div>
+                 <div class="grade-factors">${factors.map(f =>
+                   `<span class="grade-factor-chip">${escHtml(String(f))}</span>`
+                 ).join('')}</div>
+               </div>`
+            : '';
+          gradeHtml = `
+            <div class="card-section-label">Why this risk level? <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-3);">— rationale for the rating above</span></div>
+            <div class="grade-block">
+              <div class="grade-rationale">${escHtml(clause.rationale)}</div>
             </div>
+            ${factorsHtml}`;
+        } else {
+          gradeHtml = `
+            <div class="card-section-label">Risk Rationale</div>
+            <div class="grade-block">
+              <div class="grade-ungraded">${escHtml(clause.rationale || 'Risk not graded for this clause.')}</div>
+            </div>`;
+        }
+
+        // Excerpt: server pre-populates clause.snippet. Always shown inline
+        // (no disclosure widget), with the "Explain Further" button surfaced
+        // directly underneath.
+        const eagerSnippet = (clause.snippet || '').trim();
+        const snippetBody = eagerSnippet
+          ? `<div class="snippet-text">${escHtml(eagerSnippet)}</div>`
+          : `<div class="snippet-text snippet-empty">No specific passage could be isolated — this clause was detected across the document as a whole.</div>`;
+        const explainDisabled = eagerSnippet ? '' : 'disabled';
+        const snippetHtml = `
+          <div class="excerpt-block">
+            <div class="card-section-label">Supporting Contract Language <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-3);">— the actual passage from your document</span></div>
+            ${snippetBody}
             <button type="button" class="explain-btn" data-explain
-                    data-excerpt=""
+                    data-excerpt="${escAttr(eagerSnippet)}"
                     data-clause="${escAttr(clause.clause || '')}"
-                    disabled>
-              Explain further
+                    ${explainDisabled}>
+              Get plain-English explanation
             </button>
             <div class="explanation-slot"></div>
-          </details>`;
+          </div>`;
 
         // When one excerpt supports multiple clause types, render a small list
         // of co-detected clauses below the primary one. Primary = highest-conf.
@@ -1385,18 +1505,22 @@
              </div>`
           : '';
 
+        const riskTier = clause.risk || 'UNGRADED';
+        const riskBadgeText = riskTier === 'UNGRADED' ? 'NOT GRADED' : riskTier + ' RISK';
         card.innerHTML = `
           <div class="card-top">
-            <span class="cat-tag">${escHtml(clause.category)}</span>
-            <span class="risk-badge ${clause.risk}">${clause.risk}</span>
+            <span class="cat-tag">Detected Clause Type · ${escHtml(clause.category)}</span>
+            <span class="risk-badge ${riskTier}" title="Risk level for the selected party">${riskBadgeText}</span>
           </div>
           <div class="clause-name">${escHtml(clause.clause)}</div>
+          <div class="card-section-label">Detection Confidence <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-3);">— how certain the model is this clause is present</span></div>
           <div class="confidence-row">
             <div class="conf-track">
-              <div class="conf-fill ${clause.risk}" style="width:0%" data-target="${pct}"></div>
+              <div class="conf-fill ${riskTier}" style="width:0%" data-target="${pct}"></div>
             </div>
             <span class="conf-pct">${pct}%</span>
           </div>
+          ${gradeHtml}
           ${coClausesHtml}
           ${snippetHtml}
         `;
@@ -1413,53 +1537,7 @@
 
         const explainBtn = card.querySelector('[data-explain]');
         if (explainBtn) explainBtn.addEventListener('click', handleExplainClick);
-
-        const details = card.querySelector('.snippet-details');
-        if (details) details.addEventListener('toggle', handleSnippetToggle);
       });
-    }
-
-    async function handleSnippetToggle(ev) {
-      const details = ev.currentTarget;
-      if (!details.open) return;
-      if (details.dataset.loaded === '1') return;
-      // Mark early so a rapid second toggle doesn't double-fire the request.
-      details.dataset.loaded = '1';
-
-      const clause     = details.dataset.clause || '';
-      const textBox    = details.querySelector('.snippet-text');
-      const explainBtn = details.querySelector('[data-explain]');
-
-      if (!currentDocumentId) {
-        textBox.classList.remove('snippet-loading');
-        textBox.classList.add('snippet-error');
-        textBox.textContent = 'No document is loaded. Re-upload to view excerpts.';
-        return;
-      }
-
-      try {
-        const res = await fetch('/api/excerpt', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ document_id: currentDocumentId, clause }),
-        });
-        const data = await res.json();
-
-        if (!res.ok) throw new Error(data.error || 'Could not load excerpt.');
-
-        const excerpt = (data.excerpt || '').trim();
-        textBox.classList.remove('snippet-loading');
-        textBox.textContent = excerpt || '(No passage could be isolated; the clause was detected across the full document.)';
-        if (excerpt && explainBtn) {
-          explainBtn.dataset.excerpt = excerpt;
-          explainBtn.disabled = false;
-        }
-      } catch (err) {
-        details.dataset.loaded = '';   // allow retry on next open
-        textBox.classList.remove('snippet-loading');
-        textBox.classList.add('snippet-error');
-        textBox.textContent = 'Could not load excerpt: ' + (err.message || 'network error') + '. Close and reopen to retry.';
-      }
     }
 
     async function handleExplainClick(ev) {
